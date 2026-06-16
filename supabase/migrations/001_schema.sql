@@ -534,5 +534,13 @@ CREATE POLICY "Storage: upload authentifié"
   WITH CHECK (bucket_id = 'hotel-media');
 
 CREATE POLICY "Storage: suppression par propriétaire ou admin"
-  ON storage.objects FOR DELETE TO authenticated
-  USING (bucket_id = 'hotel-media' AND (owner = auth.uid()::text OR public.get_user_role() = 'admin'));
+ON storage.objects
+FOR DELETE
+TO authenticated
+USING (
+  bucket_id = 'hotel-media'
+  AND (
+    owner_id = auth.uid()::text
+    OR public.get_user_role() = 'admin'
+  )
+);
