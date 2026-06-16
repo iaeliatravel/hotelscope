@@ -61,6 +61,7 @@ export function generateCommercialSummary(hotel: {
   stars?: number
   ambiance?: string | null
   beach_distance?: string | null
+  category?: string | null
   strengths?: string[] | null
   board_types?: string[]
 }): string {
