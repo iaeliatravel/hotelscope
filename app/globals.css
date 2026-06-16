@@ -1,0 +1,112 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 99%;
+    --foreground: 220 15% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 15% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 15% 12%;
+    --primary: 215 70% 40%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 220 15% 25%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 10% 50%;
+    --accent: 215 70% 95%;
+    --accent-foreground: 215 70% 30%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 215 70% 40%;
+    --radius: 0.625rem;
+
+    /* Custom tokens */
+    --score-excellent: 142 71% 45%;
+    --score-good: 84 60% 45%;
+    --score-average: 38 92% 50%;
+    --score-poor: 0 72% 51%;
+    --sidebar-width: 240px;
+  }
+
+  .dark {
+    --background: 222 20% 8%;
+    --foreground: 210 40% 95%;
+    --card: 222 20% 11%;
+    --card-foreground: 210 40% 95%;
+    --popover: 222 20% 11%;
+    --popover-foreground: 210 40% 95%;
+    --primary: 215 70% 55%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 217 20% 16%;
+    --secondary-foreground: 210 40% 85%;
+    --muted: 217 20% 16%;
+    --muted-foreground: 215 15% 55%;
+    --accent: 217 20% 18%;
+    --accent-foreground: 215 70% 65%;
+    --destructive: 0 62% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 217 20% 18%;
+    --input: 217 20% 18%;
+    --ring: 215 70% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply tracking-tight;
+  }
+}
+
+@layer components {
+  .score-badge-excellent {
+    @apply bg-emerald-50 text-emerald-700 border border-emerald-200;
+  }
+  .score-badge-good {
+    @apply bg-lime-50 text-lime-700 border border-lime-200;
+  }
+  .score-badge-average {
+    @apply bg-amber-50 text-amber-700 border border-amber-200;
+  }
+  .score-badge-poor {
+    @apply bg-red-50 text-red-700 border border-red-200;
+  }
+
+  .page-container {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8;
+  }
+
+  .section-header {
+    @apply flex items-center justify-between mb-6;
+  }
+
+  .stat-card {
+    @apply rounded-xl border bg-card p-5 shadow-sm hover:shadow-md transition-shadow;
+  }
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-border rounded-full;
+}
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-muted-foreground/30;
+}
