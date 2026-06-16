@@ -34,6 +34,10 @@ export default function LoginPage() {
       email: data.email,
       password: data.password,
     })
+    
+    console.log("RESULT:", data)
+    console.log("ERROR:", error)
+    
     if (error) {
       toast({
         variant: 'destructive',
