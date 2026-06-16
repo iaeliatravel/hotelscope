@@ -28,27 +28,30 @@ export default function LoginPage() {
     resolver: zodResolver(loginSchema),
   })
 
-  async function onSubmit(data: LoginForm) {
+  async function onSubmit(formData: LoginForm) {
     setLoading(true)
-    const { error } = await supabase.auth.signInWithPassword({
-      email: data.email,
-      password: data.password,
+
+    const { data: authData, error } = await supabase.auth.signInWithPassword({
+      email: formData.email,
+      password: formData.password,
     })
-    
-    console.log("RESULT:", data)
+
+    console.log("AUTH DATA:", authData)
     console.log("ERROR:", error)
-    
+
     if (error) {
       toast({
         variant: 'destructive',
         title: 'Connexion échouée',
-        description: 'Email ou mot de passe incorrect.',
+        description: error.message,
       })
       setLoading(false)
       return
     }
-    router.push('/dashboard')
-    router.refresh()
+  
+    console.log("USER:", authData.user)
+
+    router.replace('/dashboard')
   }
 
   return (
