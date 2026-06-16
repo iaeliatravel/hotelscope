@@ -36,9 +36,6 @@ export default function LoginPage() {
       password: formData.password,
     })
 
-    console.log("AUTH DATA:", authData)
-    console.log("ERROR:", error)
-
     if (error) {
       toast({
         variant: 'destructive',
@@ -48,8 +45,9 @@ export default function LoginPage() {
       setLoading(false)
       return
     }
-  
-    console.log("USER:", authData.user)
+
+    // 🔥 IMPORTANT
+    await supabase.auth.getSession()
 
     router.replace('/dashboard')
   }
