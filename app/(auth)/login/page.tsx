@@ -34,39 +34,46 @@ export default function LoginPage() {
         password: data.password,
       })
 
-      if (error) {
+      if (error || !authData.session) {
         toast({
           variant: 'destructive',
           title: 'Connexion échouée',
-          description: 'Email ou mot de passe incorrect.',
+          description: error?.message || 'Email ou mot de passe incorrect.',
         })
         setLoading(false)
         return
       }
 
-      // S'assurer que le profil existe (au cas où le trigger n'a pas fonctionné)
-      if (authData.user) {
-        const { data: existingProfile } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('id', authData.user.id)
-          .single()
+      // Vérifie que le profil existe (sécurité si le trigger SQL a échoué)
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', authData.user.id)
+        .single()
 
-        if (!existingProfile) {
-          await supabase.from('profiles').insert({
-            id: authData.user.id,
-            email: authData.user.email!,
-            full_name: authData.user.email!.split('@')[0],
-            role: 'admin',
-          })
-        }
+      if (!existingProfile) {
+        await supabase.from('profiles').insert({
+          id: authData.user.id,
+          email: authData.user.email!,
+          full_name: authData.user.email!.split('@')[0],
+          role: 'admin',
+        })
       }
 
-      // window.location force un rechargement complet,
-      // ce qui évite les conflits de cache middleware Next.js
-      window.location.href = '/dashboard'
+      // Confirme que la session est bien lisible avant de naviguer
+      // (évite la race condition avec le cookie côté serveur)
+      let attempts = 0
+      while (attempts < 10) {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session) break
+        await new Promise(r => setTimeout(r, 150))
+        attempts++
+      }
 
-    } catch {
+      window.location.assign('/dashboard')
+
+    } catch (err) {
+      console.error('Login error:', err)
       toast({
         variant: 'destructive',
         title: 'Erreur inattendue',

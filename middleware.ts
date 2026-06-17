@@ -2,7 +2,11 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request })
+  const supabaseResponse = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  })
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -13,35 +17,28 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
-          cookiesToSet.forEach(({ name, value }) =>
+          cookiesToSet.forEach(({ name, value, options }) => {
             request.cookies.set(name, value)
-          )
-          supabaseResponse = NextResponse.next({ request })
-          cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
-          )
+          })
         },
       },
     }
   )
 
-  // Récupère la session — ne pas appeler getUser() ici
-  // car cela provoque des boucles sur certaines configs Vercel
-  const { data: { session } } = await supabase.auth.getSession()
+  const { data: { user } } = await supabase.auth.getUser()
 
   const pathname = request.nextUrl.pathname
   const isLoginPage = pathname.startsWith('/login')
   const isPublicPath = pathname === '/' || isLoginPage
 
-  // Pas de session → redirige vers login (sauf si déjà sur login)
-  if (!session && !isPublicPath) {
+  if (!user && !isPublicPath) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
   }
 
-  // Session active → redirige depuis login vers dashboard
-  if (session && isLoginPage) {
+  if (user && isLoginPage) {
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'
     return NextResponse.redirect(url)
