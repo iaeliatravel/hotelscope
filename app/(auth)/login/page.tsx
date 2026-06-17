@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -20,7 +19,6 @@ type LoginForm = z.infer<typeof loginSchema>
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false)
-  const router = useRouter()
   const supabase = createClient()
   const { toast } = useToast()
 
@@ -28,28 +26,54 @@ export default function LoginPage() {
     resolver: zodResolver(loginSchema),
   })
 
-  async function onSubmit(formData: LoginForm) {
+  async function onSubmit(data: LoginForm) {
     setLoading(true)
+    try {
+      const { data: authData, error } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password: data.password,
+      })
 
-    const { data: authData, error } = await supabase.auth.signInWithPassword({
-      email: formData.email,
-      password: formData.password,
-    })
+      if (error) {
+        toast({
+          variant: 'destructive',
+          title: 'Connexion échouée',
+          description: 'Email ou mot de passe incorrect.',
+        })
+        setLoading(false)
+        return
+      }
 
-    if (error) {
+      // S'assurer que le profil existe (au cas où le trigger n'a pas fonctionné)
+      if (authData.user) {
+        const { data: existingProfile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', authData.user.id)
+          .single()
+
+        if (!existingProfile) {
+          await supabase.from('profiles').insert({
+            id: authData.user.id,
+            email: authData.user.email!,
+            full_name: authData.user.email!.split('@')[0],
+            role: 'admin',
+          })
+        }
+      }
+
+      // window.location force un rechargement complet,
+      // ce qui évite les conflits de cache middleware Next.js
+      window.location.href = '/dashboard'
+
+    } catch {
       toast({
         variant: 'destructive',
-        title: 'Connexion échouée',
-        description: error.message,
+        title: 'Erreur inattendue',
+        description: 'Veuillez réessayer.',
       })
       setLoading(false)
-      return
     }
-
-    // 🔥 IMPORTANT
-    await supabase.auth.getSession()
-
-    router.replace('/dashboard')
   }
 
   return (
@@ -76,6 +100,7 @@ export default function LoginPage() {
                 id="email"
                 type="email"
                 placeholder="vous@agence.com"
+                autoComplete="email"
                 {...register('email')}
                 className={errors.email ? 'border-destructive' : ''}
               />
@@ -89,6 +114,7 @@ export default function LoginPage() {
                 id="password"
                 type="password"
                 placeholder="••••••••"
+                autoComplete="current-password"
                 {...register('password')}
                 className={errors.password ? 'border-destructive' : ''}
               />
