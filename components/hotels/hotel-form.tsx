@@ -156,7 +156,13 @@ export function HotelForm({ hotel, hotelScores }: HotelFormProps) {
     const ambiance = watch('ambiance')
     const beach_distance = watch('beach_distance')
     const category = watch('category')
-    const summary = generateCommercialSummary({ name, ambiance, beach_distance, category: category as any, strengths })
+    const summary = generateCommercialSummary({
+      name,
+      stars: parseInt(category) || undefined,
+      ambiance,
+      beach_distance,
+      strengths,
+    })
     setValue('commercial_summary', summary)
   }
 
