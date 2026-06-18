@@ -68,9 +68,17 @@ export interface Hotel {
   weaknesses: string[] | null
   commercial_summary: string | null
   internal_notes: string | null
+  aelia_note: string | null
   cover_image: string | null
   website_url: string | null
   booking_url: string | null
+  tiktok_url: string | null
+  instagram_url: string | null
+  facebook_url: string | null
+  latitude: number | null
+  longitude: number | null
+  map_static_url: string | null
+  google_maps_url: string | null
   global_score: number | null
   last_updated_by: string | null
   last_reviewed_at: string | null
@@ -176,7 +184,7 @@ export interface HotelMedia {
   id: string
   hotel_id: string
   author_id: string
-  type: 'image' | 'capture' | 'document' | 'link'
+  type: 'image' | 'capture' | 'document' | 'link' | 'social'
   url: string
   caption: string | null
   source: string | null

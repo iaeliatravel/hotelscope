@@ -5,26 +5,27 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ScoreBadge, ScoreBar, StarRating } from '@/components/scores/score-badge'
-import { getStatusConfig, BOARD_LABELS, PROFILE_CONFIG, type Hotel, type HotelScore } from '@/lib/types'
+import { getStatusConfig, BOARD_LABELS } from '@/lib/types'
 import { formatDate, formatRelative } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import {
-  MapPin, Edit, Copy, Star, MessageSquare, TrendingUp,
+  MapPin, Edit, Star, MessageSquare, TrendingUp,
   ExternalLink, Clock, CheckCircle2, XCircle, AlertCircle,
-  Waves, Utensils, Bed, Zap, Sparkles, BarChart3
+  Waves, Utensils, Bed, Zap, Sparkles, BarChart3, Globe,
+  Instagram, Facebook, Video, Image as ImageIcon
 } from 'lucide-react'
 import Link from 'next/link'
 
-const SCORE_LABELS: Record<string, { label: string; icon: any }> = {
-  location_score: { label: 'Emplacement', icon: MapPin },
-  beach_score: { label: 'Plage', icon: Waves },
-  food_score: { label: 'Restauration', icon: Utensils },
-  rooms_score: { label: 'Chambres', icon: Bed },
-  animation_score: { label: 'Animation', icon: Zap },
-  cleanliness_score: { label: 'Propreté', icon: Sparkles },
-  value_score: { label: 'Rapport Q/P', icon: BarChart3 },
-  commercial_score: { label: 'Intérêt commercial', icon: Star },
-  reliability_score: { label: 'Fiabilité globale', icon: CheckCircle2 },
+const SCORE_LABELS: Record<string, string> = {
+  location_score: 'Emplacement',
+  beach_score: 'Plage',
+  food_score: 'Restauration',
+  rooms_score: 'Chambres',
+  animation_score: 'Animation',
+  cleanliness_score: 'Propreté',
+  value_score: 'Rapport Q/P',
+  commercial_score: 'Intérêt commercial',
+  reliability_score: 'Fiabilité globale',
 }
 
 export default async function HotelDetailPage({ params }: { params: { id: string } }) {
@@ -38,10 +39,10 @@ export default async function HotelDetailPage({ params }: { params: { id: string
       zone:zones(*),
       scores:hotel_scores(*),
       reviews:hotel_reviews(*, author:profiles(full_name)),
-      prices:hotel_price_snapshots(*, author:profiles(full_name)),
+      prices:hotel_price_snapshots(*),
       media:hotel_media(*),
       sources:sources(*),
-      profiles:hotel_profile_matches(*, profile:client_profiles(*))
+      profile_matches:hotel_profile_matches(*, profile:client_profiles(*))
     `)
     .eq('id', params.id)
     .eq('is_deleted', false)
@@ -51,17 +52,18 @@ export default async function HotelDetailPage({ params }: { params: { id: string
 
   const h = hotel as any
   const statusConfig = getStatusConfig(h.status)
-  const scores: HotelScore | null = h.scores?.[0] || null
+  const scores = h.scores?.[0] || null
   const reviews = h.reviews || []
   const prices = h.prices || []
+  const images = (h.media || []).filter((m: any) => m.type === 'image' || m.type === 'capture')
 
   const scoreEntries = scores
-    ? Object.entries(SCORE_LABELS).map(([key, meta]) => ({
-        key,
-        label: meta.label,
-        value: (scores as any)[key] || 0,
+    ? Object.entries(SCORE_LABELS).map(([key, label]) => ({
+        key, label, value: scores[key] || 0,
       }))
     : []
+
+  const hasSocial = h.tiktok_url || h.instagram_url || h.facebook_url
 
   return (
     <div>
@@ -69,22 +71,36 @@ export default async function HotelDetailPage({ params }: { params: { id: string
         title={h.name}
         description={`${h.city?.name}${h.zone?.name ? ` · ${h.zone.name}` : ''}`}
         actions={
-          <div className="flex gap-2">
-            <Link href={`/hotels/${h.id}/edit`}>
-              <Button variant="outline" size="sm">
-                <Edit className="w-4 h-4 mr-2" />Modifier
-              </Button>
-            </Link>
-          </div>
+          <Link href={`/hotels/${h.id}/edit`}>
+            <Button variant="outline" size="sm">
+              <Edit className="w-4 h-4 mr-2" />Modifier
+            </Button>
+          </Link>
         }
       />
 
       <div className="page-container space-y-6">
+        {/* Image gallery */}
+        {images.length > 0 && (
+          <div className={cn(
+            'grid gap-2 rounded-2xl overflow-hidden',
+            images.length === 1 ? 'grid-cols-1 h-64 sm:h-80' :
+            images.length === 2 ? 'grid-cols-2 h-64' :
+            'grid-cols-2 sm:grid-cols-3 h-64'
+          )}>
+            {images.slice(0, 3).map((img: any, i: number) => (
+              <div key={img.id} className={cn('relative overflow-hidden bg-muted', i === 0 && images.length > 2 && 'row-span-2 sm:row-span-1')}>
+                <img src={img.url} alt={img.caption || h.name} className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Hero card */}
-        <div className="rounded-xl border bg-white p-6">
+        <div className="rounded-xl border bg-white p-5 sm:p-6">
           <div className="flex flex-col sm:flex-row sm:items-start gap-4">
             <div className="flex-1">
-              <div className="flex flex-wrap items-center gap-2 mb-3">
+              <div className="flex flex-wrap items-center gap-2 mb-2">
                 <span className={cn('inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold border', statusConfig.class)}>
                   {statusConfig.label}
                 </span>
@@ -94,19 +110,18 @@ export default async function HotelDetailPage({ params }: { params: { id: string
                 )}
               </div>
 
-              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-                <MapPin className="w-4 h-4" />
+              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
+                <MapPin className="w-4 h-4 flex-shrink-0" />
                 <span>{h.city?.name}</span>
                 {h.zone?.name && <><span>·</span><span>{h.zone.name}</span></>}
-                {h.address && <><span>·</span><span>{h.address}</span></>}
+                {h.address && <><span>·</span><span className="truncate">{h.address}</span></>}
               </div>
 
               {h.commercial_summary && (
                 <p className="text-sm leading-relaxed text-muted-foreground">{h.commercial_summary}</p>
               )}
 
-              {/* Info pills */}
-              <div className="flex flex-wrap gap-2 mt-4">
+              <div className="flex flex-wrap gap-2 mt-3">
                 {h.beach_distance && (
                   <span className="inline-flex items-center gap-1.5 text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-md">
                     <Waves className="w-3 h-3" /> Plage {h.beach_distance}
@@ -118,36 +133,101 @@ export default async function HotelDetailPage({ params }: { params: { id: string
                   </span>
                 ))}
               </div>
+
+              {/* Social links */}
+              {hasSocial && (
+                <div className="flex gap-3 mt-3">
+                  {h.tiktok_url && (
+                    <a href={h.tiktok_url} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                      <Video className="w-3.5 h-3.5" />TikTok
+                    </a>
+                  )}
+                  {h.instagram_url && (
+                    <a href={h.instagram_url} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-pink-600 transition-colors">
+                      <Instagram className="w-3.5 h-3.5" />Instagram
+                    </a>
+                  )}
+                  {h.facebook_url && (
+                    <a href={h.facebook_url} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-blue-600 transition-colors">
+                      <Facebook className="w-3.5 h-3.5" />Facebook
+                    </a>
+                  )}
+                  {h.website_url && (
+                    <a href={h.website_url} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors">
+                      <Globe className="w-3.5 h-3.5" />Site web
+                    </a>
+                  )}
+                </div>
+              )}
             </div>
 
-            {/* Score */}
             {h.global_score && (
-              <div className="flex flex-col items-center bg-muted/30 rounded-xl p-5 min-w-[110px]">
-                <p className="text-xs text-muted-foreground mb-1">Note globale</p>
+              <div className="flex flex-row sm:flex-col items-center gap-3 sm:gap-1 bg-muted/30 rounded-xl p-4 sm:p-5">
+                <p className="text-xs text-muted-foreground">Note globale</p>
                 <p className="text-4xl font-bold text-primary">{h.global_score}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">/ 10</p>
+                <p className="text-xs text-muted-foreground">/10</p>
               </div>
             )}
           </div>
         </div>
 
+        {/* Google Maps */}
+        {h.latitude && h.longitude && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center justify-between">
+                <span className="flex items-center gap-2"><MapPin className="w-4 h-4 text-primary" />Localisation</span>
+                <a href={h.google_maps_url || `https://www.google.com/maps?q=${h.latitude},${h.longitude}`}
+                  target="_blank" rel="noopener noreferrer"
+                  className="text-xs text-primary hover:underline flex items-center gap-1">
+                  Ouvrir dans Google Maps <ExternalLink className="w-3 h-3" />
+                </a>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0 overflow-hidden rounded-b-xl">
+              <img
+                src={`https://maps.googleapis.com/maps/api/staticmap?center=${h.latitude},${h.longitude}&zoom=17&size=800x300&maptype=satellite&markers=color:red%7C${h.latitude},${h.longitude}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`}
+                alt={`Localisation de ${h.name}`}
+                className="w-full h-48 object-cover"
+              />
+            </CardContent>
+          </Card>
+        )}
+
+        {/* AeliaNote */}
+        {h.aelia_note && (
+          <Card className="border-amber-200 bg-amber-50/30">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm text-amber-800 flex items-center gap-2">
+                ✍️ AeliaNote — Avis personnel
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-amber-900 whitespace-pre-line leading-relaxed">{h.aelia_note}</p>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Tabs */}
         <Tabs defaultValue="overview">
-          <TabsList className="w-full sm:w-auto">
+          <TabsList className="w-full grid grid-cols-4">
             <TabsTrigger value="overview">Fiche</TabsTrigger>
             <TabsTrigger value="scores">Notes</TabsTrigger>
-            <TabsTrigger value="reviews">Avis</TabsTrigger>
-            <TabsTrigger value="prices">Prix</TabsTrigger>
+            <TabsTrigger value="reviews">Avis ({reviews.length})</TabsTrigger>
+            <TabsTrigger value="prices">Prix ({prices.length})</TabsTrigger>
           </TabsList>
 
           {/* Overview */}
           <TabsContent value="overview" className="space-y-4 mt-4">
             <div className="grid sm:grid-cols-2 gap-4">
-              {/* Strengths */}
               {h.strengths?.length > 0 && (
                 <Card>
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm flex items-center gap-2 text-emerald-700">
+                    <CardTitle className="text-sm text-emerald-700 flex items-center gap-2">
                       <CheckCircle2 className="w-4 h-4" />Points forts
                     </CardTitle>
                   </CardHeader>
@@ -161,12 +241,10 @@ export default async function HotelDetailPage({ params }: { params: { id: string
                   </CardContent>
                 </Card>
               )}
-
-              {/* Weaknesses */}
               {h.weaknesses?.length > 0 && (
                 <Card>
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm flex items-center gap-2 text-red-600">
+                    <CardTitle className="text-sm text-red-600 flex items-center gap-2">
                       <XCircle className="w-4 h-4" />Points faibles
                     </CardTitle>
                   </CardHeader>
@@ -182,11 +260,8 @@ export default async function HotelDetailPage({ params }: { params: { id: string
               )}
             </div>
 
-            {/* Quality details */}
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">Qualité par aspect</CardTitle>
-              </CardHeader>
+              <CardHeader className="pb-2"><CardTitle className="text-sm">Qualité par aspect</CardTitle></CardHeader>
               <CardContent className="grid sm:grid-cols-2 gap-3">
                 {[
                   { label: 'Chambres', value: h.room_quality },
@@ -204,36 +279,27 @@ export default async function HotelDetailPage({ params }: { params: { id: string
               </CardContent>
             </Card>
 
-            {/* Client profiles */}
-            {h.profiles?.length > 0 && (
+            {h.profile_matches?.length > 0 && (
               <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm">Profils clients adaptés</CardTitle>
-                </CardHeader>
+                <CardHeader className="pb-2"><CardTitle className="text-sm">Profils clients adaptés</CardTitle></CardHeader>
                 <CardContent>
                   <div className="flex flex-wrap gap-2">
-                    {h.profiles.map((pm: any) => {
-                      const profileType = pm.profile?.name
-                      const config = PROFILE_CONFIG[profileType as keyof typeof PROFILE_CONFIG]
-                      if (!config) return null
-                      return (
-                        <span key={pm.profile_id} className={cn('inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md border font-medium', config.color)}>
-                          <span>{config.icon}</span>
-                          {config.label}
-                          {pm.match_level === 'parfait' && <span className="text-[10px] opacity-70">★</span>}
-                        </span>
-                      )
-                    })}
+                    {h.profile_matches.map((pm: any) => (
+                      <span key={pm.profile_id}
+                        className={cn('inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md border font-medium', pm.profile?.color || 'bg-muted text-muted-foreground border-muted')}>
+                        {pm.profile?.icon} {pm.profile?.label}
+                        {pm.match_level === 'parfait' && <span className="text-[10px] opacity-70">★</span>}
+                      </span>
+                    ))}
                   </div>
                 </CardContent>
               </Card>
             )}
 
-            {/* Internal notes */}
             {h.internal_notes && (
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm flex items-center gap-2 text-amber-700">
+                  <CardTitle className="text-sm text-amber-700 flex items-center gap-2">
                     <AlertCircle className="w-4 h-4" />Notes internes
                   </CardTitle>
                 </CardHeader>
@@ -243,25 +309,19 @@ export default async function HotelDetailPage({ params }: { params: { id: string
               </Card>
             )}
 
-            {/* Sources */}
             {h.sources?.length > 0 && (
               <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm">Sources</CardTitle>
-                </CardHeader>
+                <CardHeader className="pb-2"><CardTitle className="text-sm">Sources</CardTitle></CardHeader>
                 <CardContent className="space-y-2">
                   {h.sources.map((s: any) => (
                     <div key={s.id} className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground capitalize bg-muted px-1.5 py-0.5 rounded">{s.type}</span>
+                      <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded capitalize">{s.type}</span>
                       {s.url ? (
                         <a href={s.url} target="_blank" rel="noopener noreferrer"
                           className="text-sm text-primary hover:underline flex items-center gap-1">
                           {s.name}<ExternalLink className="w-3 h-3" />
                         </a>
-                      ) : (
-                        <span className="text-sm">{s.name}</span>
-                      )}
-                      {s.notes && <span className="text-xs text-muted-foreground">— {s.notes}</span>}
+                      ) : <span className="text-sm">{s.name}</span>}
                     </div>
                   ))}
                 </CardContent>
@@ -270,14 +330,11 @@ export default async function HotelDetailPage({ params }: { params: { id: string
 
             <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2">
               <Clock className="w-3.5 h-3.5" />
-              {h.last_reviewed_at
-                ? <>Dernière révision {formatRelative(h.last_reviewed_at)}</>
-                : <>Créé {formatRelative(h.created_at)}</>
-              }
+              {h.last_reviewed_at ? <>Dernière révision {formatRelative(h.last_reviewed_at)}</> : <>Créé {formatRelative(h.created_at)}</>}
             </div>
           </TabsContent>
 
-          {/* Scores tab */}
+          {/* Scores */}
           <TabsContent value="scores" className="mt-4">
             <Card>
               <CardHeader>
@@ -290,20 +347,16 @@ export default async function HotelDetailPage({ params }: { params: { id: string
                 {scoreEntries.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-6">
                     Aucune note saisie.{' '}
-                    <Link href={`/hotels/${h.id}/edit`} className="text-primary hover:underline">
-                      Ajouter des notes →
-                    </Link>
+                    <Link href={`/hotels/${h.id}/edit`} className="text-primary hover:underline">Ajouter des notes →</Link>
                   </p>
-                ) : (
-                  scoreEntries.map(({ key, label, value }) => (
-                    <ScoreBar key={key} label={label} value={value} />
-                  ))
-                )}
+                ) : scoreEntries.map(({ key, label, value }) => (
+                  <ScoreBar key={key} label={label} value={value} />
+                ))}
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* Reviews tab */}
+          {/* Reviews */}
           <TabsContent value="reviews" className="mt-4 space-y-4">
             <div className="flex justify-end">
               <Link href={`/reviews?hotel_id=${h.id}`}>
@@ -314,42 +367,40 @@ export default async function HotelDetailPage({ params }: { params: { id: string
             </div>
             {reviews.length === 0 ? (
               <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">Aucun avis enregistré.</CardContent></Card>
-            ) : (
-              reviews.map((r: any) => (
-                <Card key={r.id}>
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">{r.author?.full_name || 'Agent'}</span>
-                      <span className="text-xs text-muted-foreground">{formatDate(r.review_date)}</span>
+            ) : reviews.map((r: any) => (
+              <Card key={r.id}>
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">{r.author?.full_name || 'Agent'}</span>
+                    <span className="text-xs text-muted-foreground">{formatDate(r.review_date)}</span>
+                  </div>
+                  {r.source && <p className="text-xs text-muted-foreground">Source : {r.source}</p>}
+                </CardHeader>
+                <CardContent className="grid sm:grid-cols-2 gap-4">
+                  {r.positive_trends && (
+                    <div>
+                      <p className="text-xs font-semibold text-emerald-700 mb-1">Tendances positives</p>
+                      <p className="text-sm text-muted-foreground whitespace-pre-line">{r.positive_trends}</p>
                     </div>
-                    {r.source && <p className="text-xs text-muted-foreground">Source : {r.source}</p>}
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {r.positive_trends && (
-                      <div>
-                        <p className="text-xs font-medium text-emerald-700 mb-1">Points positifs</p>
-                        <p className="text-sm text-muted-foreground">{r.positive_trends}</p>
-                      </div>
-                    )}
-                    {r.negative_trends && (
-                      <div>
-                        <p className="text-xs font-medium text-red-600 mb-1">Points négatifs</p>
-                        <p className="text-sm text-muted-foreground">{r.negative_trends}</p>
-                      </div>
-                    )}
-                    {r.short_conclusion && (
-                      <div className="pt-2 border-t">
-                        <p className="text-xs font-medium text-muted-foreground mb-1">Conclusion</p>
-                        <p className="text-sm font-medium">{r.short_conclusion}</p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))
-            )}
+                  )}
+                  {r.negative_trends && (
+                    <div>
+                      <p className="text-xs font-semibold text-red-600 mb-1">Tendances négatives</p>
+                      <p className="text-sm text-muted-foreground whitespace-pre-line">{r.negative_trends}</p>
+                    </div>
+                  )}
+                  {r.short_conclusion && (
+                    <div className="sm:col-span-2 pt-3 border-t">
+                      <p className="text-xs font-semibold text-muted-foreground mb-1">Conclusion</p>
+                      <p className="text-sm font-medium">{r.short_conclusion}</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
           </TabsContent>
 
-          {/* Prices tab */}
+          {/* Prices */}
           <TabsContent value="prices" className="mt-4 space-y-4">
             <div className="flex justify-end">
               <Link href={`/prices?hotel_id=${h.id}`}>
@@ -367,24 +418,20 @@ export default async function HotelDetailPage({ params }: { params: { id: string
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b bg-muted/30">
-                          <th className="text-left p-3 text-xs font-medium text-muted-foreground">Date</th>
-                          <th className="text-left p-3 text-xs font-medium text-muted-foreground">Type</th>
-                          <th className="text-left p-3 text-xs font-medium text-muted-foreground">Régime</th>
-                          <th className="text-left p-3 text-xs font-medium text-muted-foreground">Pers.</th>
-                          <th className="text-right p-3 text-xs font-medium text-muted-foreground">Prix</th>
-                          <th className="text-left p-3 text-xs font-medium text-muted-foreground">Source</th>
+                          {['Date', 'Saison', 'Type', 'Régime', 'Pers.', 'Prix', 'Source'].map(h => (
+                            <th key={h} className="text-left p-3 text-xs font-medium text-muted-foreground whitespace-nowrap">{h}</th>
+                          ))}
                         </tr>
                       </thead>
                       <tbody>
                         {prices.map((p: any) => (
                           <tr key={p.id} className="border-b last:border-0 hover:bg-muted/20">
-                            <td className="p-3 text-xs text-muted-foreground">{formatDate(p.observation_date)}</td>
-                            <td className="p-3">{p.room_type || '—'}</td>
+                            <td className="p-3 text-xs text-muted-foreground whitespace-nowrap">{formatDate(p.observation_date)}</td>
+                            <td className="p-3 text-xs capitalize">{p.season || '—'}</td>
+                            <td className="p-3 text-xs">{p.room_type || '—'}</td>
                             <td className="p-3 text-xs">{BOARD_LABELS[p.board_type as keyof typeof BOARD_LABELS] || '—'}</td>
-                            <td className="p-3 text-center">{p.adults + (p.children || 0)}</td>
-                            <td className="p-3 text-right font-semibold">
-                              {p.price} {p.currency}
-                            </td>
+                            <td className="p-3 text-center text-xs">{p.adults + (p.children || 0)}</td>
+                            <td className="p-3 font-semibold whitespace-nowrap">{p.price} {p.currency}</td>
                             <td className="p-3 text-xs text-muted-foreground">{p.source_platform || '—'}</td>
                           </tr>
                         ))}

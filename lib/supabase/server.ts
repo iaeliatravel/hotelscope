@@ -19,7 +19,7 @@ export function createClient() {
             )
           } catch {
             // Appelé depuis un Server Component — peut être ignoré
-            // si vous avez un middleware qui rafraîchit les sessions.
+            // si le middleware rafraîchit déjà les sessions.
           }
         },
       },

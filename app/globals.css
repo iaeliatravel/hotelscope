@@ -24,12 +24,6 @@
     --input: 220 13% 91%;
     --ring: 215 70% 40%;
     --radius: 0.625rem;
-
-    /* Custom tokens */
-    --score-excellent: 142 71% 45%;
-    --score-good: 84 60% 45%;
-    --score-average: 38 92% 50%;
-    --score-poor: 0 72% 51%;
     --sidebar-width: 240px;
   }
 
@@ -57,34 +51,23 @@
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
+  * { @apply border-border; }
   body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
-  h1, h2, h3, h4, h5, h6 {
-    @apply tracking-tight;
-  }
+  h1, h2, h3, h4, h5, h6 { @apply tracking-tight; }
 }
 
 @layer components {
-  .score-badge-excellent {
-    @apply bg-emerald-50 text-emerald-700 border border-emerald-200;
-  }
-  .score-badge-good {
-    @apply bg-lime-50 text-lime-700 border border-lime-200;
-  }
-  .score-badge-average {
-    @apply bg-amber-50 text-amber-700 border border-amber-200;
-  }
-  .score-badge-poor {
-    @apply bg-red-50 text-red-700 border border-red-200;
-  }
+  .score-badge-excellent { @apply bg-emerald-50 text-emerald-700 border border-emerald-200; }
+  .score-badge-good      { @apply bg-lime-50 text-lime-700 border border-lime-200; }
+  .score-badge-average   { @apply bg-amber-50 text-amber-700 border border-amber-200; }
+  .score-badge-poor      { @apply bg-red-50 text-red-700 border border-red-200; }
 
+  /* Page containers: responsive paddings */
   .page-container {
-    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8;
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8;
   }
 
   .section-header {
@@ -92,21 +75,46 @@
   }
 
   .stat-card {
-    @apply rounded-xl border bg-card p-5 shadow-sm hover:shadow-md transition-shadow;
+    @apply rounded-xl border bg-card p-4 sm:p-5 shadow-sm hover:shadow-md transition-shadow;
+  }
+
+  /* Mobile-friendly tap targets */
+  .tap-target {
+    @apply min-h-[44px] min-w-[44px];
+  }
+
+  /* Hotel card hover animation */
+  .hotel-card {
+    @apply bg-white rounded-2xl border transition-all duration-200;
+  }
+  .hotel-card:hover {
+    @apply border-primary/20 shadow-lg -translate-y-0.5;
   }
 }
 
-/* Scrollbar styling */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+/* Mobile: prevent content from going behind bottom nav */
+@media (max-width: 768px) {
+  body { padding-bottom: env(safe-area-inset-bottom); }
+  .page-container { @apply pb-6; }
 }
-::-webkit-scrollbar-track {
-  background: transparent;
+
+/* Smooth scrolling */
+html { scroll-behavior: smooth; }
+
+/* Scrollbar styling (desktop) */
+@media (min-width: 768px) {
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { @apply bg-border rounded-full; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-muted-foreground/30; }
 }
-::-webkit-scrollbar-thumb {
-  @apply bg-border rounded-full;
-}
-::-webkit-scrollbar-thumb:hover {
-  @apply bg-muted-foreground/30;
-}
+
+/* Smooth transitions */
+* { transition-property: color, background-color, border-color, box-shadow, transform;
+    transition-duration: 150ms; transition-timing-function: ease; }
+
+/* Image optimization */
+img { @apply max-w-full; }
+
+/* Focus visible for accessibility */
+:focus-visible { @apply outline-none ring-2 ring-ring ring-offset-2; }

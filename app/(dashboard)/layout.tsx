@@ -22,7 +22,8 @@ export default async function DashboardLayout({
   return (
     <div className="min-h-screen bg-background">
       <Sidebar profile={profile as Profile} />
-      <main className="pl-[240px] min-h-screen">
+      {/* Desktop: left padding for sidebar. Mobile: bottom padding for nav bar */}
+      <main className="md:pl-[240px] pb-20 md:pb-0 min-h-screen">
         {children}
       </main>
     </div>

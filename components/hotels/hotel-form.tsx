@@ -13,9 +13,14 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useToast } from '@/components/ui/use-toast'
-import { Loader2, Plus, X } from 'lucide-react'
+import { Loader2, Plus, X, Trash2, AlertTriangle, Sparkles } from 'lucide-react'
 import { slugify, calculateAverageScore, generateCommercialSummary } from '@/lib/utils'
 import type { City, Zone, Hotel } from '@/lib/types'
+import { LocationPicker } from '@/components/hotels/location-picker'
+import { MediaManager } from '@/components/hotels/media-manager'
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
+} from '@/components/ui/dialog'
 
 const hotelSchema = z.object({
   name: z.string().min(2, 'Nom requis'),
@@ -23,7 +28,7 @@ const hotelSchema = z.object({
   zone_id: z.string().optional(),
   category: z.string().min(1, 'Catégorie requise'),
   status: z.string().min(1),
-  address: z.string().optional(),
+  landmark: z.string().optional(),
   beach_distance: z.string().optional(),
   beach_type: z.string().optional(),
   ambiance: z.string().optional(),
@@ -36,7 +41,11 @@ const hotelSchema = z.object({
   value_for_money: z.string().optional(),
   commercial_summary: z.string().optional(),
   internal_notes: z.string().optional(),
+  aelia_note: z.string().optional(),
   website_url: z.string().optional(),
+  tiktok_url: z.string().optional(),
+  instagram_url: z.string().optional(),
+  facebook_url: z.string().optional(),
 })
 
 type HotelFormData = z.infer<typeof hotelSchema>
@@ -71,6 +80,9 @@ export function HotelForm({ hotel, hotelScores }: HotelFormProps) {
   const [cities, setCities] = useState<City[]>([])
   const [zones, setZones] = useState<Zone[]>([])
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [strengths, setStrengths] = useState<string[]>(hotel?.strengths || [])
   const [weaknesses, setWeaknesses] = useState<string[]>(hotel?.weaknesses || [])
   const [boardTypes, setBoardTypes] = useState<string[]>(hotel?.board_types || [])
@@ -79,6 +91,13 @@ export function HotelForm({ hotel, hotelScores }: HotelFormProps) {
   )
   const [newStrength, setNewStrength] = useState('')
   const [newWeakness, setNewWeakness] = useState('')
+  const [locationData, setLocationData] = useState({
+    address: hotel?.address || '',
+    latitude: hotel?.latitude || null,
+    longitude: hotel?.longitude || null,
+    mapStaticUrl: hotel?.map_static_url || null,
+    googleMapsUrl: hotel?.google_maps_url || null,
+  })
 
   const router = useRouter()
   const supabase = createClient()
@@ -92,7 +111,7 @@ export function HotelForm({ hotel, hotelScores }: HotelFormProps) {
       zone_id: hotel?.zone_id || '',
       category: hotel?.category || '4',
       status: hotel?.status || 'actif',
-      address: hotel?.address || '',
+      landmark: hotel?.landmark || '',
       beach_distance: hotel?.beach_distance || '',
       beach_type: hotel?.beach_type || '',
       ambiance: hotel?.ambiance || '',
@@ -105,7 +124,11 @@ export function HotelForm({ hotel, hotelScores }: HotelFormProps) {
       value_for_money: hotel?.value_for_money || '',
       commercial_summary: hotel?.commercial_summary || '',
       internal_notes: hotel?.internal_notes || '',
+      aelia_note: hotel?.aelia_note || '',
       website_url: hotel?.website_url || '',
+      tiktok_url: hotel?.tiktok_url || '',
+      instagram_url: hotel?.instagram_url || '',
+      facebook_url: hotel?.facebook_url || '',
     },
   })
 
@@ -175,6 +198,11 @@ export function HotelForm({ hotel, hotelScores }: HotelFormProps) {
       ...data,
       zone_id: data.zone_id || null,
       slug: slugify(data.name),
+      address: locationData.address || null,
+      latitude: locationData.latitude,
+      longitude: locationData.longitude,
+      map_static_url: locationData.mapStaticUrl,
+      google_maps_url: locationData.googleMapsUrl,
       strengths,
       weaknesses,
       board_types: boardTypes,
@@ -194,7 +222,6 @@ export function HotelForm({ hotel, hotelScores }: HotelFormProps) {
       hotelId = newHotel.id
     }
 
-    // Upsert scores
     if (hotelId) {
       const scorePayload = {
         hotel_id: hotelId,
@@ -208,7 +235,6 @@ export function HotelForm({ hotel, hotelScores }: HotelFormProps) {
         await supabase.from('hotel_scores').insert(scorePayload)
       }
 
-      // Log activity
       await supabase.from('activity_log').insert({
         user_id: user?.id,
         action: hotel ? 'a modifié' : 'a créé',
@@ -223,9 +249,33 @@ export function HotelForm({ hotel, hotelScores }: HotelFormProps) {
     router.refresh()
   }
 
+  async function handleDelete() {
+    if (!hotel || deleteConfirmText !== hotel.name) return
+    setDeleting(true)
+
+    const { error } = await supabase.rpc('delete_hotel_permanently', { p_hotel_id: hotel.id })
+
+    if (error) {
+      toast({ variant: 'destructive', title: 'Erreur', description: error.message })
+      setDeleting(false)
+      return
+    }
+
+    const { data: { user } } = await supabase.auth.getUser()
+    await supabase.from('activity_log').insert({
+      user_id: user?.id,
+      action: 'a supprimé définitivement',
+      entity_type: 'hotel',
+      entity_name: hotel.name,
+    })
+
+    toast({ title: 'Hôtel supprimé définitivement' })
+    router.push('/hotels')
+    router.refresh()
+  }
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      {/* Identification */}
       <Card>
         <CardHeader><CardTitle className="text-base">Identification</CardTitle></CardHeader>
         <CardContent className="grid sm:grid-cols-2 gap-4">
@@ -240,7 +290,7 @@ export function HotelForm({ hotel, hotelScores }: HotelFormProps) {
             <Controller name="city_id" control={control} render={({ field }) => (
               <Select value={field.value} onValueChange={field.onChange}>
                 <SelectTrigger><SelectValue placeholder="Choisir une ville…" /></SelectTrigger>
-                <SelectContent>{cities.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                <SelectContent>{cities.map(c => <SelectItem key={c.id} value={c.id}>{c.name} ({c.country})</SelectItem>)}</SelectContent>
               </Select>
             )} />
             {errors.city_id && <p className="text-xs text-destructive">{errors.city_id.message}</p>}
@@ -291,18 +341,31 @@ export function HotelForm({ hotel, hotelScores }: HotelFormProps) {
         </CardContent>
       </Card>
 
-      {/* Localisation */}
       <Card>
-        <CardHeader><CardTitle className="text-base">Localisation & Caractéristiques</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">Localisation</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <LocationPicker
+            address={locationData.address}
+            latitude={locationData.latitude}
+            longitude={locationData.longitude}
+            onChange={setLocationData}
+          />
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>Repère / Point de référence</Label>
+              <Input {...register('landmark')} placeholder="Ex : Face à la grande mosquée" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Distance plage</Label>
+              <Input {...register('beach_distance')} placeholder="Ex : directe, 100m, 500m…" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">Caractéristiques</CardTitle></CardHeader>
         <CardContent className="grid sm:grid-cols-2 gap-4">
-          <div className="sm:col-span-2 space-y-1.5">
-            <Label>Adresse / Repère</Label>
-            <Input {...register('address')} placeholder="Ex : Boulevard Mohammed V, face à la mer" />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Distance plage</Label>
-            <Input {...register('beach_distance')} placeholder="Ex : directe, 100m, 500m…" />
-          </div>
           <div className="space-y-1.5">
             <Label>Type de plage</Label>
             <Controller name="beach_type" control={control} render={({ field }) => (
@@ -337,14 +400,13 @@ export function HotelForm({ hotel, hotelScores }: HotelFormProps) {
               </Select>
             )} />
           </div>
-          <div className="space-y-1.5">
+          <div className="sm:col-span-2 space-y-1.5">
             <Label>Clientèle cible</Label>
             <Input {...register('target_audience')} placeholder="Ex : Familles, couples, seniors…" />
           </div>
         </CardContent>
       </Card>
 
-      {/* Régimes */}
       <Card>
         <CardHeader><CardTitle className="text-base">Régimes proposés</CardTitle></CardHeader>
         <CardContent>
@@ -367,7 +429,40 @@ export function HotelForm({ hotel, hotelScores }: HotelFormProps) {
         </CardContent>
       </Card>
 
-      {/* Qualités */}
+      <Card>
+        <CardHeader><CardTitle className="text-base">Réseaux sociaux</CardTitle></CardHeader>
+        <CardContent className="grid sm:grid-cols-3 gap-4">
+          <div className="space-y-1.5">
+            <Label>TikTok</Label>
+            <Input {...register('tiktok_url')} placeholder="https://tiktok.com/@…" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Instagram</Label>
+            <Input {...register('instagram_url')} placeholder="https://instagram.com/…" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Facebook</Label>
+            <Input {...register('facebook_url')} placeholder="https://facebook.com/…" />
+          </div>
+        </CardContent>
+      </Card>
+
+      {hotel && (
+        <Card>
+          <CardHeader><CardTitle className="text-base">Photos & Médias</CardTitle></CardHeader>
+          <CardContent>
+            <MediaManager hotelId={hotel.id} />
+          </CardContent>
+        </Card>
+      )}
+      {!hotel && (
+        <Card>
+          <CardContent className="py-6 text-center text-sm text-muted-foreground">
+            Vous pourrez ajouter des photos et médias après la création de l'hôtel.
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader><CardTitle className="text-base">Qualité par aspect</CardTitle></CardHeader>
         <CardContent className="grid sm:grid-cols-2 gap-4">
@@ -387,7 +482,6 @@ export function HotelForm({ hotel, hotelScores }: HotelFormProps) {
         </CardContent>
       </Card>
 
-      {/* Notes */}
       <Card>
         <CardHeader><CardTitle className="text-base">Notes (sur 10)</CardTitle></CardHeader>
         <CardContent className="grid sm:grid-cols-3 gap-4">
@@ -419,7 +513,6 @@ export function HotelForm({ hotel, hotelScores }: HotelFormProps) {
         </CardContent>
       </Card>
 
-      {/* Points forts / faibles */}
       <Card>
         <CardHeader><CardTitle className="text-base">Points forts & faibles</CardTitle></CardHeader>
         <CardContent className="grid sm:grid-cols-2 gap-6">
@@ -470,20 +563,26 @@ export function HotelForm({ hotel, hotelScores }: HotelFormProps) {
         </CardContent>
       </Card>
 
-      {/* Résumé & Notes */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="text-base">Résumé commercial</CardTitle>
             <Button type="button" variant="outline" size="sm" onClick={autoSummary}>
-              ✨ Générer
+              <Sparkles className="w-3.5 h-3.5 mr-1.5" />Générer
             </Button>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <Textarea {...register('commercial_summary')} placeholder="Résumé commercial de l'hôtel pour les clients…" rows={4} />
+
+          <div className="space-y-1.5 pt-2 border-t">
+            <Label className="text-amber-700">AeliaNote — Votre avis personnel</Label>
+            <Textarea {...register('aelia_note')} placeholder="Votre propre impression, ce que vous pensez vraiment de cet hôtel…" rows={3} className="border-amber-200 focus-visible:ring-amber-400" />
+            <p className="text-xs text-muted-foreground">Note interne d'Aelia Travel, distincte des avis clients et des notes internes générales.</p>
+          </div>
+
           <div className="space-y-1.5">
-            <Label>Notes internes</Label>
+            <Label>Notes internes générales</Label>
             <Textarea {...register('internal_notes')} placeholder="Observations internes, points d'attention…" rows={3} />
           </div>
           <div className="space-y-1.5">
@@ -493,7 +592,24 @@ export function HotelForm({ hotel, hotelScores }: HotelFormProps) {
         </CardContent>
       </Card>
 
-      {/* Actions */}
+      {hotel && (
+        <Card className="border-destructive/30">
+          <CardHeader>
+            <CardTitle className="text-base text-destructive flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4" />Zone de danger
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-3">
+              La suppression de cet hôtel est définitive et irréversible. Toutes les données associées (notes, avis, prix, médias) seront perdues.
+            </p>
+            <Button type="button" variant="destructive" size="sm" onClick={() => setDeleteDialogOpen(true)}>
+              <Trash2 className="w-4 h-4 mr-2" />Supprimer définitivement cet hôtel
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="flex items-center justify-end gap-3 pb-6">
         <Button type="button" variant="outline" onClick={() => router.back()}>Annuler</Button>
         <Button type="submit" disabled={saving}>
@@ -501,6 +617,38 @@ export function HotelForm({ hotel, hotelScores }: HotelFormProps) {
           {hotel ? 'Enregistrer les modifications' : 'Créer l\'hôtel'}
         </Button>
       </div>
+
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-destructive">Supprimer définitivement « {hotel?.name} » ?</DialogTitle>
+            <DialogDescription>
+              Cette action est irréversible. Toutes les notes, avis, prix, médias et associations liés à cet hôtel seront perdus pour toujours.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label className="text-sm">Pour confirmer, tapez le nom exact de l'hôtel :</Label>
+            <Input
+              value={deleteConfirmText}
+              onChange={e => setDeleteConfirmText(e.target.value)}
+              placeholder={hotel?.name}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setDeleteDialogOpen(false); setDeleteConfirmText('') }}>
+              Annuler
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleting || deleteConfirmText !== hotel?.name}
+              onClick={handleDelete}
+            >
+              {deleting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Supprimer définitivement
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </form>
   )
 }
