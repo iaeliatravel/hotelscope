@@ -36,8 +36,8 @@ export default function CitiesPage() {
     setLoading(true)
     const { data } = await supabase.from('cities').select('*, hotels:hotels(count)').eq('is_active', true).order('name')
     setCities(data as City[] || [])
-    const unique = Array.from(new Set((data || []).map((c: any) => c.country))].sort())
-    setCountries(unique as string[])
+    const unique = Array.from(new Set((data || []).map((c: any) => c.country as string))).sort()
+    setCountries(unique)
     setLoading(false)
   }
 

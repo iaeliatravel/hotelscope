@@ -30,7 +30,7 @@ export default function ExplorePage() {
   // Load countries on mount
   useEffect(() => {
     supabase.from('cities').select('country').eq('is_active', true).then(({ data }) => {
-      const unique = Array.from(new Set((data || []).map((c: any) => c.country))].sort())
+      const unique = Array.from(new Set((data || []).map((c: any) => c.country as string))).sort()
       setCountries(unique)
     })
   }, [])
