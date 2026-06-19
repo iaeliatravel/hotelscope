@@ -3,93 +3,111 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Button } from '@/components/ui/button'
-import { MapPin, Loader2, ExternalLink, Search } from 'lucide-react'
+import { MapPin, Loader2, ExternalLink, Search, X } from 'lucide-react'
+
+interface LocationData {
+  address: string
+  latitude: number | null
+  longitude: number | null
+  mapStaticUrl: string | null
+  googleMapsUrl: string | null
+}
 
 interface LocationPickerProps {
   address: string
   latitude: number | null
   longitude: number | null
-  onChange: (data: { address: string; latitude: number | null; longitude: number | null; mapStaticUrl: string | null; googleMapsUrl: string | null }) => void
+  onChange: (data: LocationData) => void
 }
 
 declare global {
   interface Window {
     google: any
-    initGoogleMaps?: () => void
+    hotelScopeGoogleReady?: boolean
+    hotelScopeGoogleCallbacks?: (() => void)[]
   }
 }
 
-const GOOGLE_MAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''
+
+function buildStaticMapUrl(lat: number, lng: number): string {
+  return `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=18&size=640x300&maptype=satellite&markers=color:red%7C${lat},${lng}&key=${API_KEY}`
+}
 
 export function LocationPicker({ address, latitude, longitude, onChange }: LocationPickerProps) {
   const [query, setQuery] = useState(address || '')
-  const [scriptLoaded, setScriptLoaded] = useState(false)
+  const [ready, setReady] = useState(false)
   const [searching, setSearching] = useState(false)
   const [predictions, setPredictions] = useState<any[]>([])
-  const [showDropdown, setShowDropdown] = useState(false)
-  const autocompleteServiceRef = useRef<any>(null)
-  const placesServiceRef = useRef<any>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
+  const [showDrop, setShowDrop] = useState(false)
+  const [imgError, setImgError] = useState(false)
+  const autoRef = useRef<any>(null)
+  const placesRef = useRef<any>(null)
+  const wrapRef = useRef<HTMLDivElement>(null)
 
-  // Load Google Maps script once
+  // Load Google Maps script
   useEffect(() => {
-    if (!GOOGLE_MAPS_KEY) return
-    if (window.google?.maps) {
-      setScriptLoaded(true)
+    if (!API_KEY) return
+
+    function onReady() {
+      if (!window.google?.maps?.places) return
+      autoRef.current = new window.google.maps.places.AutocompleteService()
+      const div = document.createElement('div')
+      placesRef.current = new window.google.maps.places.PlacesService(div)
+      setReady(true)
+    }
+
+    if (window.google?.maps?.places) {
+      onReady()
       return
     }
-    if (document.getElementById('google-maps-script')) {
-      const check = setInterval(() => {
-        if (window.google?.maps) {
-          setScriptLoaded(true)
-          clearInterval(check)
-        }
-      }, 200)
-      return () => clearInterval(check)
+
+    // Queue callback
+    if (!window.hotelScopeGoogleCallbacks) window.hotelScopeGoogleCallbacks = []
+    window.hotelScopeGoogleCallbacks.push(onReady)
+
+    if (document.getElementById('hs-gmaps')) {
+      // Script already loading, just wait
+      const iv = setInterval(() => {
+        if (window.google?.maps?.places) { onReady(); clearInterval(iv) }
+      }, 300)
+      return () => clearInterval(iv)
+    }
+
+    // Define global callback
+    ;(window as any).hsGmapsInit = () => {
+      window.hotelScopeGoogleCallbacks?.forEach(cb => cb())
     }
 
     const script = document.createElement('script')
-    script.id = 'google-maps-script'
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_KEY}&libraries=places`
+    script.id = 'hs-gmaps'
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${API_KEY}&libraries=places&callback=hsGmapsInit`
     script.async = true
-    script.onload = () => setScriptLoaded(true)
+    script.defer = true
+    script.onerror = () => console.error('Google Maps script failed to load. Check your API key.')
     document.head.appendChild(script)
   }, [])
 
-  useEffect(() => {
-    if (scriptLoaded && window.google?.maps?.places) {
-      autocompleteServiceRef.current = new window.google.maps.places.AutocompleteService()
-      const dummyDiv = document.createElement('div')
-      placesServiceRef.current = new window.google.maps.places.PlacesService(dummyDiv)
-    }
-  }, [scriptLoaded])
-
   // Close dropdown on outside click
   useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setShowDropdown(false)
-      }
+    const h = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setShowDrop(false)
     }
-    document.addEventListener('click', handleClick)
-    return () => document.removeEventListener('click', handleClick)
+    document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
   }, [])
 
-  function handleInputChange(value: string) {
-    setQuery(value)
-    if (!value.trim() || !autocompleteServiceRef.current) {
-      setPredictions([])
-      return
-    }
+  function handleInput(val: string) {
+    setQuery(val)
+    if (!val.trim() || !ready || !autoRef.current) { setPredictions([]); return }
     setSearching(true)
-    autocompleteServiceRef.current.getPlacePredictions(
-      { input: value, types: ['lodging', 'establishment'] },
+    autoRef.current.getPlacePredictions(
+      { input: val },
       (results: any[], status: string) => {
         setSearching(false)
-        if (status === 'OK' && results) {
+        if (results && status === window.google.maps.places.PlacesServiceStatus.OK) {
           setPredictions(results)
-          setShowDropdown(true)
+          setShowDrop(true)
         } else {
           setPredictions([])
         }
@@ -97,42 +115,39 @@ export function LocationPicker({ address, latitude, longitude, onChange }: Locat
     )
   }
 
-  function selectPlace(placeId: string, description: string) {
-    if (!placesServiceRef.current) return
+  function selectPlace(placeId: string, desc: string) {
+    if (!placesRef.current) return
     setSearching(true)
-    placesServiceRef.current.getDetails(
+    setShowDrop(false)
+    placesRef.current.getDetails(
       { placeId, fields: ['geometry', 'formatted_address', 'name'] },
       (place: any, status: string) => {
         setSearching(false)
-        setShowDropdown(false)
-        if (status === 'OK' && place?.geometry?.location) {
+        if (status === window.google.maps.places.PlacesServiceStatus.OK && place?.geometry?.location) {
           const lat = place.geometry.location.lat()
           const lng = place.geometry.location.lng()
-          const formattedAddress = place.formatted_address || description
-          setQuery(formattedAddress)
-
-          const mapStaticUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=18&size=640x400&maptype=satellite&markers=color:red%7C${lat},${lng}&key=${GOOGLE_MAPS_KEY}`
-          const googleMapsUrl = `https://www.google.com/maps?q=${lat},${lng}`
-
+          const addr = place.formatted_address || desc
+          setQuery(addr)
+          setImgError(false)
           onChange({
-            address: formattedAddress,
+            address: addr,
             latitude: lat,
             longitude: lng,
-            mapStaticUrl,
-            googleMapsUrl,
+            mapStaticUrl: buildStaticMapUrl(lat, lng),
+            googleMapsUrl: `https://www.google.com/maps?q=${lat},${lng}`,
           })
         }
       }
     )
   }
 
-  function clearLocation() {
+  function clear() {
     setQuery('')
     setPredictions([])
     onChange({ address: '', latitude: null, longitude: null, mapStaticUrl: null, googleMapsUrl: null })
   }
 
-  if (!GOOGLE_MAPS_KEY) {
+  if (!API_KEY) {
     return (
       <div className="space-y-1.5">
         <Label>Adresse / Localisation</Label>
@@ -141,42 +156,53 @@ export function LocationPicker({ address, latitude, longitude, onChange }: Locat
           onChange={e => { setQuery(e.target.value); onChange({ address: e.target.value, latitude, longitude, mapStaticUrl: null, googleMapsUrl: null }) }}
           placeholder="Adresse de l'hôtel…"
         />
-        <p className="text-xs text-amber-600">
-          Clé Google Maps non configurée — saisie manuelle uniquement. Ajoutez NEXT_PUBLIC_GOOGLE_MAPS_API_KEY pour activer l'autocomplete et la capture satellite.
+        <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          ⚠️ Clé Google Maps non configurée. Ajoutez <code className="font-mono">NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code> dans vos variables d'environnement Vercel.
         </p>
       </div>
     )
   }
 
   return (
-    <div className="space-y-2" ref={containerRef}>
-      <Label>Adresse / Localisation</Label>
+    <div className="space-y-3" ref={wrapRef}>
+      <Label>Localisation (Google Maps)</Label>
+
+      {/* Search input */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
         <Input
           value={query}
-          onChange={e => handleInputChange(e.target.value)}
-          onFocus={() => predictions.length > 0 && setShowDropdown(true)}
-          placeholder="Rechercher l'hôtel sur Google Maps…"
+          onChange={e => handleInput(e.target.value)}
+          onFocus={() => predictions.length > 0 && setShowDrop(true)}
+          placeholder={ready ? "Rechercher l'hôtel sur Google Maps…" : "Chargement de Google Maps…"}
           className="pl-9 pr-9"
+          disabled={!ready && !latitude}
         />
-        {searching && (
+        {searching ? (
           <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />
+        ) : query && (
+          <button type="button" onClick={clear} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+            <X className="w-4 h-4" />
+          </button>
         )}
 
-        {showDropdown && predictions.length > 0 && (
-          <div className="absolute z-50 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-64 overflow-y-auto">
-            {predictions.map((p) => (
+        {/* Dropdown suggestions */}
+        {showDrop && predictions.length > 0 && (
+          <div className="absolute z-50 w-full mt-1 bg-white border rounded-xl shadow-xl max-h-72 overflow-y-auto">
+            {predictions.map(p => (
               <button
                 key={p.place_id}
                 type="button"
+                onMouseDown={e => e.preventDefault()}
                 onClick={() => selectPlace(p.place_id, p.description)}
-                className="w-full text-left px-3 py-2.5 hover:bg-muted/60 transition-colors border-b last:border-0 flex items-start gap-2"
+                className="w-full text-left px-4 py-3 hover:bg-muted/60 transition-colors border-b last:border-0 flex items-start gap-3"
               >
-                <MapPin className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="text-sm font-medium">{p.structured_formatting?.main_text}</p>
-                  <p className="text-xs text-muted-foreground">{p.structured_formatting?.secondary_text}</p>
+                <MapPin className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{p.structured_formatting?.main_text || p.description}</p>
+                  {p.structured_formatting?.secondary_text && (
+                    <p className="text-xs text-muted-foreground truncate">{p.structured_formatting.secondary_text}</p>
+                  )}
                 </div>
               </button>
             ))}
@@ -184,30 +210,42 @@ export function LocationPicker({ address, latitude, longitude, onChange }: Locat
         )}
       </div>
 
+      {/* Status info */}
+      {!ready && API_KEY && (
+        <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+          <Loader2 className="w-3 h-3 animate-spin" />Chargement de Google Maps…
+        </p>
+      )}
+
+      {/* Satellite preview */}
       {latitude && longitude && (
-        <div className="rounded-lg border overflow-hidden">
-          <img
-            src={`https://maps.googleapis.com/maps/api/staticmap?center=${latitude},${longitude}&zoom=18&size=640x300&maptype=satellite&markers=color:red%7C${latitude},${longitude}&key=${GOOGLE_MAPS_KEY}`}
-            alt="Vue satellite de l'hôtel"
-            className="w-full h-48 object-cover"
-          />
-          <div className="flex items-center justify-between p-2.5 bg-muted/30 text-xs">
-            <span className="text-muted-foreground">
-              {latitude.toFixed(5)}, {longitude.toFixed(5)}
-            </span>
-            <div className="flex items-center gap-3">
-              <a
-                href={`https://www.google.com/maps?q=${latitude},${longitude}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary hover:underline flex items-center gap-1"
-              >
-                Voir sur Google Maps <ExternalLink className="w-3 h-3" />
-              </a>
-              <button type="button" onClick={clearLocation} className="text-destructive hover:underline">
-                Effacer
-              </button>
+        <div className="rounded-xl border overflow-hidden shadow-sm">
+          {!imgError ? (
+            <img
+              src={buildStaticMapUrl(latitude, longitude)}
+              alt="Vue satellite"
+              className="w-full h-52 object-cover"
+              onError={() => setImgError(true)}
+            />
+          ) : (
+            <div className="w-full h-52 bg-muted flex flex-col items-center justify-center gap-2 text-muted-foreground">
+              <MapPin className="w-8 h-8 opacity-30" />
+              <p className="text-xs">Aperçu carte non disponible</p>
+              <p className="text-xs opacity-60">Vérifiez que Maps Static API est activée</p>
             </div>
+          )}
+          <div className="flex items-center justify-between px-3 py-2 bg-muted/30 text-xs">
+            <span className="text-muted-foreground font-mono">
+              {latitude.toFixed(6)}, {longitude.toFixed(6)}
+            </span>
+            <a
+              href={`https://www.google.com/maps?q=${latitude},${longitude}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:underline flex items-center gap-1"
+            >
+              Ouvrir Maps <ExternalLink className="w-3 h-3" />
+            </a>
           </div>
         </div>
       )}
