@@ -6,15 +6,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ScoreBadge, ScoreBar, StarRating } from '@/components/scores/score-badge'
 import { getStatusConfig, BOARD_LABELS } from '@/lib/types'
-import { formatDate, formatRelative } from '@/lib/utils'
+import { formatRelative } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import {
-  MapPin, Edit, MessageSquare, TrendingUp,
-  ExternalLink, Clock, CheckCircle2, XCircle, AlertCircle,
-  Waves, Globe, Instagram, Facebook, Video, Map
+  MapPin, Edit, Clock, AlertCircle,
+  Waves, Globe, Instagram, Facebook, Video, Map, ExternalLink,
 } from 'lucide-react'
 import Link from 'next/link'
 import { HotelGallery } from '@/components/hotels/hotel-gallery'
+import { HotelPdfButton } from '@/components/hotels/hotel-pdf'
+import { StrengthsEditor } from '@/components/hotels/strengths-editor'
+import { ProfileMatcher } from '@/components/hotels/profile-matcher'
+import { PriceManager } from '@/components/hotels/price-manager'
 
 const SCORE_LABELS: Record<string, string> = {
   location_score: 'Emplacement',
@@ -39,7 +42,6 @@ export default async function HotelDetailPage({ params }: { params: { id: string
       zone:zones(*),
       scores:hotel_scores(*),
       reviews:hotel_reviews(*, author:profiles(full_name)),
-      prices:hotel_price_snapshots(*),
       media:hotel_media(*),
       sources:sources(*),
       profile_matches:hotel_profile_matches(*, profile:client_profiles(*))
@@ -54,16 +56,13 @@ export default async function HotelDetailPage({ params }: { params: { id: string
   const statusConfig = getStatusConfig(h.status)
   const scores = h.scores?.[0] || null
   const reviews = h.reviews || []
-  const prices = h.prices || []
   const allMedia = h.media || []
-  const images = allMedia.filter((m: any) => m.type === 'image' || m.type === 'capture')
-  const videos = allMedia.filter((m: any) => m.type === 'social')
 
   const scoreEntries = scores
     ? Object.entries(SCORE_LABELS).map(([key, label]) => ({ key, label, value: scores[key] || 0 }))
     : []
 
-  const hasSocial = h.tiktok_url || h.instagram_url || h.facebook_url || videos.length > 0
+  const GOOGLE_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''
 
   return (
     <div>
@@ -71,21 +70,24 @@ export default async function HotelDetailPage({ params }: { params: { id: string
         title={h.name}
         description={`${h.city?.name}${h.zone?.name ? ` · ${h.zone.name}` : ''}`}
         actions={
-          <Link href={`/hotels/${h.id}/edit`}>
-            <Button variant="outline" size="sm">
-              <Edit className="w-4 h-4 mr-2" />Modifier
-            </Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <HotelPdfButton hotelId={h.id} hotelName={h.name} />
+            <Link href={`/hotels/${h.id}/edit`}>
+              <Button variant="outline" size="sm">
+                <Edit className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Modifier</span>
+              </Button>
+            </Link>
+          </div>
         }
       />
 
-      <div className="page-container space-y-6">
-
-        {/* Full gallery — client component handles all images + delete */}
+      <div className="page-container space-y-5">
+        {/* Gallery — full, with lightbox + delete */}
         <HotelGallery hotelId={h.id} initialMedia={allMedia} />
 
-        {/* Hero info */}
-        <div className="rounded-xl border bg-white p-5">
+        {/* Hero */}
+        <div className="rounded-xl border bg-white p-4 sm:p-5">
           <div className="flex flex-col sm:flex-row sm:items-start gap-4">
             <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-center gap-2 mb-2">
@@ -102,7 +104,7 @@ export default async function HotelDetailPage({ params }: { params: { id: string
                 <MapPin className="w-4 h-4 flex-shrink-0 mt-0.5" />
                 <span>{h.city?.name}</span>
                 {h.zone?.name && <><span>·</span><span>{h.zone.name}</span></>}
-                {h.address && <><span>·</span><span className="break-all">{h.address}</span></>}
+                {h.address && <><span>·</span><span className="break-words">{h.address}</span></>}
               </div>
 
               {h.commercial_summary && (
@@ -122,37 +124,32 @@ export default async function HotelDetailPage({ params }: { params: { id: string
                 ))}
               </div>
 
-              {/* Social / Web links */}
-              {(hasSocial || h.website_url || h.google_maps_url) && (
+              {/* Links */}
+              {(h.website_url || h.tiktok_url || h.instagram_url || h.facebook_url || h.google_maps_url) && (
                 <div className="flex flex-wrap gap-3 mt-3 pt-3 border-t">
                   {h.website_url && (
-                    <a href={h.website_url} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors">
+                    <a href={h.website_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary">
                       <Globe className="w-3.5 h-3.5" />Site officiel
                     </a>
                   )}
                   {h.tiktok_url && (
-                    <a href={h.tiktok_url} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-black transition-colors">
+                    <a href={h.tiktok_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-black">
                       <Video className="w-3.5 h-3.5" />TikTok
                     </a>
                   )}
                   {h.instagram_url && (
-                    <a href={h.instagram_url} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-pink-600 transition-colors">
+                    <a href={h.instagram_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-pink-600">
                       <Instagram className="w-3.5 h-3.5" />Instagram
                     </a>
                   )}
                   {h.facebook_url && (
-                    <a href={h.facebook_url} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-blue-600 transition-colors">
+                    <a href={h.facebook_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-blue-600">
                       <Facebook className="w-3.5 h-3.5" />Facebook
                     </a>
                   )}
                   {h.google_maps_url && (
-                    <a href={h.google_maps_url} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-red-500 transition-colors">
-                      <Map className="w-3.5 h-3.5" />Google Maps
+                    <a href={h.google_maps_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-red-500">
+                      <Map className="w-3.5 h-3.5" />Maps
                     </a>
                   )}
                 </div>
@@ -160,8 +157,8 @@ export default async function HotelDetailPage({ params }: { params: { id: string
             </div>
 
             {h.global_score && (
-              <div className="flex sm:flex-col items-center gap-2 sm:gap-1 bg-muted/30 rounded-xl px-5 py-3 sm:py-5 flex-shrink-0">
-                <p className="text-xs text-muted-foreground">Note globale</p>
+              <div className="flex sm:flex-col items-center gap-2 sm:gap-1 bg-muted/30 rounded-xl px-5 py-3 flex-shrink-0">
+                <p className="text-xs text-muted-foreground">Note</p>
                 <p className="text-4xl font-bold text-primary">{h.global_score}</p>
                 <p className="text-xs text-muted-foreground">/10</p>
               </div>
@@ -170,9 +167,9 @@ export default async function HotelDetailPage({ params }: { params: { id: string
         </div>
 
         {/* Satellite map */}
-        {h.latitude && h.longitude && process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY && (
+        {h.latitude && h.longitude && GOOGLE_KEY && (
           <Card>
-            <CardHeader className="pb-0">
+            <CardHeader className="pb-0 pt-4 px-4">
               <CardTitle className="text-sm flex items-center justify-between">
                 <span className="flex items-center gap-2"><Map className="w-4 h-4 text-primary" />Vue satellite</span>
                 <a href={h.google_maps_url || `https://www.google.com/maps?q=${h.latitude},${h.longitude}`}
@@ -184,9 +181,9 @@ export default async function HotelDetailPage({ params }: { params: { id: string
             </CardHeader>
             <CardContent className="p-0 mt-3 overflow-hidden rounded-b-xl">
               <img
-                src={`https://maps.googleapis.com/maps/api/staticmap?center=${h.latitude},${h.longitude}&zoom=17&size=800x320&maptype=satellite&markers=color:red%7Clabel:H%7C${h.latitude},${h.longitude}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`}
+                src={`https://maps.googleapis.com/maps/api/staticmap?center=${h.latitude},${h.longitude}&zoom=17&size=800x280&maptype=satellite&markers=color:red%7Clabel:H%7C${h.latitude},${h.longitude}&key=${GOOGLE_KEY}`}
                 alt={`Localisation de ${h.name}`}
-                className="w-full h-52 object-cover"
+                className="w-full h-48 sm:h-56 object-cover"
               />
             </CardContent>
           </Card>
@@ -196,7 +193,7 @@ export default async function HotelDetailPage({ params }: { params: { id: string
         {h.aelia_note && (
           <Card className="border-amber-200 bg-amber-50/40">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-amber-800">✍️ AeliaNote — Avis personnel</CardTitle>
+              <CardTitle className="text-sm text-amber-800">✍️ AeliaNote</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-amber-900 whitespace-pre-line leading-relaxed">{h.aelia_note}</p>
@@ -206,51 +203,37 @@ export default async function HotelDetailPage({ params }: { params: { id: string
 
         {/* Tabs */}
         <Tabs defaultValue="overview">
-          <TabsList className="w-full grid grid-cols-4 h-auto">
+          <TabsList className="w-full grid grid-cols-4">
             <TabsTrigger value="overview" className="text-xs sm:text-sm">Fiche</TabsTrigger>
             <TabsTrigger value="scores" className="text-xs sm:text-sm">Notes</TabsTrigger>
             <TabsTrigger value="reviews" className="text-xs sm:text-sm">Avis ({reviews.length})</TabsTrigger>
-            <TabsTrigger value="prices" className="text-xs sm:text-sm">Prix ({prices.length})</TabsTrigger>
+            <TabsTrigger value="prices" className="text-xs sm:text-sm">Prix</TabsTrigger>
           </TabsList>
 
+          {/* Overview */}
           <TabsContent value="overview" className="space-y-4 mt-4">
+
+            {/* Strengths & Weaknesses — editable inline */}
             <div className="grid sm:grid-cols-2 gap-4">
-              {h.strengths?.length > 0 && (
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm text-emerald-700 flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4" />Points forts
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    {h.strengths.map((s: string, i: number) => (
-                      <div key={i} className="flex items-start gap-2">
-                        <span className="text-emerald-500 mt-0.5 flex-shrink-0">✓</span>
-                        <span className="text-sm">{s}</span>
-                      </div>
-                    ))}
-                  </CardContent>
-                </Card>
-              )}
-              {h.weaknesses?.length > 0 && (
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm text-red-600 flex items-center gap-2">
-                      <XCircle className="w-4 h-4" />Points faibles
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    {h.weaknesses.map((w: string, i: number) => (
-                      <div key={i} className="flex items-start gap-2">
-                        <span className="text-red-400 mt-0.5 flex-shrink-0">✕</span>
-                        <span className="text-sm">{w}</span>
-                      </div>
-                    ))}
-                  </CardContent>
-                </Card>
-              )}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm text-emerald-700">✓ Points forts</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <StrengthsEditor hotelId={h.id} type="strengths" initialItems={h.strengths || []} />
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm text-red-600">✕ Points faibles</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <StrengthsEditor hotelId={h.id} type="weaknesses" initialItems={h.weaknesses || []} />
+                </CardContent>
+              </Card>
             </div>
 
+            {/* Quality aspects */}
             {(h.room_quality || h.food_quality || h.pool_quality || h.beach_quality || h.animation_level || h.value_for_money) && (
               <Card>
                 <CardHeader className="pb-2"><CardTitle className="text-sm">Qualité par aspect</CardTitle></CardHeader>
@@ -272,24 +255,15 @@ export default async function HotelDetailPage({ params }: { params: { id: string
               </Card>
             )}
 
-            {h.profile_matches?.length > 0 && (
-              <Card>
-                <CardHeader className="pb-2"><CardTitle className="text-sm">Profils clients adaptés</CardTitle></CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap gap-2">
-                    {h.profile_matches.map((pm: any) => (
-                      <span key={pm.profile_id}
-                        className={cn('inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md border font-medium',
-                          pm.profile?.color || 'bg-muted text-muted-foreground border-muted')}>
-                        {pm.profile?.icon} {pm.profile?.label}
-                        {pm.match_level === 'parfait' && <span className="text-[10px] opacity-70">★</span>}
-                      </span>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+            {/* Profile matcher — dropdown */}
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-sm">Profils clients adaptés</CardTitle></CardHeader>
+              <CardContent>
+                <ProfileMatcher hotelId={h.id} initialMatches={h.profile_matches || []} />
+              </CardContent>
+            </Card>
 
+            {/* Internal notes */}
             {h.internal_notes && (
               <Card>
                 <CardHeader className="pb-2">
@@ -303,6 +277,7 @@ export default async function HotelDetailPage({ params }: { params: { id: string
               </Card>
             )}
 
+            {/* Sources */}
             {h.sources?.length > 0 && (
               <Card>
                 <CardHeader className="pb-2"><CardTitle className="text-sm">Sources</CardTitle></CardHeader>
@@ -322,12 +297,13 @@ export default async function HotelDetailPage({ params }: { params: { id: string
               </Card>
             )}
 
-            <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Clock className="w-3.5 h-3.5" />
               {h.last_reviewed_at ? <>Dernière révision {formatRelative(h.last_reviewed_at)}</> : <>Créé {formatRelative(h.created_at)}</>}
             </div>
           </TabsContent>
 
+          {/* Scores */}
           <TabsContent value="scores" className="mt-4">
             <Card>
               <CardHeader>
@@ -338,9 +314,12 @@ export default async function HotelDetailPage({ params }: { params: { id: string
               </CardHeader>
               <CardContent className="space-y-3">
                 {scoreEntries.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-6">
-                    Aucune note saisie. <Link href={`/hotels/${h.id}/edit`} className="text-primary hover:underline">Ajouter →</Link>
-                  </p>
+                  <div className="text-center py-8">
+                    <p className="text-sm text-muted-foreground">Aucune note saisie.</p>
+                    <Link href={`/hotels/${h.id}/edit`} className="text-primary hover:underline text-sm mt-2 inline-block">
+                      Ajouter des notes →
+                    </Link>
+                  </div>
                 ) : scoreEntries.map(({ key, label, value }) => (
                   <ScoreBar key={key} label={label} value={value} />
                 ))}
@@ -348,12 +327,11 @@ export default async function HotelDetailPage({ params }: { params: { id: string
             </Card>
           </TabsContent>
 
+          {/* Reviews */}
           <TabsContent value="reviews" className="mt-4 space-y-4">
             <div className="flex justify-end">
               <Link href={`/reviews?hotel_id=${h.id}`}>
-                <Button size="sm" variant="outline">
-                  <MessageSquare className="w-4 h-4 mr-2" />Ajouter un avis
-                </Button>
+                <Button size="sm" variant="outline">+ Ajouter un avis</Button>
               </Link>
             </div>
             {reviews.length === 0 ? (
@@ -363,9 +341,8 @@ export default async function HotelDetailPage({ params }: { params: { id: string
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">{r.author?.full_name || 'Agent'}</span>
-                    <span className="text-xs text-muted-foreground">{formatDate(r.review_date)}</span>
+                    <span className="text-xs text-muted-foreground">{r.review_date}</span>
                   </div>
-                  {r.source && <p className="text-xs text-muted-foreground">Source : {r.source}</p>}
                 </CardHeader>
                 <CardContent className="grid sm:grid-cols-2 gap-4">
                   {r.positive_trends && (
@@ -391,46 +368,9 @@ export default async function HotelDetailPage({ params }: { params: { id: string
             ))}
           </TabsContent>
 
-          <TabsContent value="prices" className="mt-4 space-y-4">
-            <div className="flex justify-end">
-              <Link href={`/prices?hotel_id=${h.id}`}>
-                <Button size="sm" variant="outline">
-                  <TrendingUp className="w-4 h-4 mr-2" />Ajouter un prix
-                </Button>
-              </Link>
-            </div>
-            {prices.length === 0 ? (
-              <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">Aucun prix enregistré.</CardContent></Card>
-            ) : (
-              <Card>
-                <CardContent className="p-0">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b bg-muted/30">
-                          {['Date', 'Saison', 'Type chambre', 'Régime', 'Pers.', 'Prix', 'Source'].map(col => (
-                            <th key={col} className="text-left p-3 text-xs font-medium text-muted-foreground whitespace-nowrap">{col}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {prices.map((p: any) => (
-                          <tr key={p.id} className="border-b last:border-0 hover:bg-muted/20">
-                            <td className="p-3 text-xs text-muted-foreground whitespace-nowrap">{formatDate(p.observation_date)}</td>
-                            <td className="p-3 text-xs capitalize">{p.season || '—'}</td>
-                            <td className="p-3 text-xs">{p.room_type || '—'}</td>
-                            <td className="p-3 text-xs">{BOARD_LABELS[p.board_type as keyof typeof BOARD_LABELS] || '—'}</td>
-                            <td className="p-3 text-center text-xs">{p.adults + (p.children || 0)}</td>
-                            <td className="p-3 font-semibold whitespace-nowrap">{p.price} {p.currency}</td>
-                            <td className="p-3 text-xs text-muted-foreground">{p.source_platform || '—'}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+          {/* Prices — full manager */}
+          <TabsContent value="prices" className="mt-4">
+            <PriceManager hotelId={h.id} />
           </TabsContent>
         </Tabs>
       </div>

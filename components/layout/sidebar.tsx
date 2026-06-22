@@ -26,6 +26,7 @@ const navGroups = [
       { href: '/cities', label: 'Villes', icon: Globe },
       { href: '/zones', label: 'Zones', icon: MapPin },
       { href: '/hotels', label: 'Hôtels', icon: Hotel },
+      { href: '/compare', label: 'Comparer', icon: Star },
     ]
   },
   {

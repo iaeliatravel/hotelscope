@@ -490,12 +490,15 @@ export function HotelForm({ hotel, hotelScores }: HotelFormProps) {
               <Label className="text-xs">{f.label}</Label>
               <div className="flex items-center gap-2">
                 <Input
-                  type="number"
-                  min={0}
-                  max={10}
-                  step={0.5}
-                  value={scores[f.key] || ''}
-                  onChange={e => updateScore(f.key, parseFloat(e.target.value) || 0)}
+                  type="text"
+                  inputMode="decimal"
+                  value={scores[f.key] === 0 ? '' : String(scores[f.key]).replace('.', ',')}
+                  onChange={e => {
+                    const raw = e.target.value.replace(',', '.')
+                    const val = parseFloat(raw)
+                    updateScore(f.key, isNaN(val) ? 0 : Math.min(10, Math.max(0, val)))
+                  }}
+                  placeholder="0"
                   className="h-8 text-center"
                 />
                 <span className="text-xs text-muted-foreground w-4">/10</span>
