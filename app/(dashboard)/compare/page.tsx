@@ -71,31 +71,47 @@ export default function ComparePage() {
   const activeHotels = hotels.filter(Boolean)
   const count = activeHotels.length
 
-  function handlePrint() {
+  async function handlePrint() {
     const content = printRef.current
     if (!content) return
-    const win = window.open('', '_blank', 'width=1100,height=800')
+    const { data: a } = await supabase.from('agency_settings').select('*').limit(1).single()
+    const ag = a || { name: 'Aelia Travel', slogan: 'Votre agence de voyage de confiance', email: 'contact@aeliatravel.com', website: 'www.aeliatravel.com', phone: '', address: '', primary_color: '#1e40af' }
+    const color = ag.primary_color || '#1e40af'
+    const win = window.open('', '_blank', 'width=900,height=800')
     if (!win) return
     win.document.write(`<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"/>
     <title>Comparaison hôtels</title>
     <style>
       *{margin:0;padding:0;box-sizing:border-box;}
-      body{font-family:Arial,sans-serif;font-size:10px;color:#1e293b;background:white;}
-      @page{margin:12mm;size:A4 landscape;}
+      body{font-family:Arial,Helvetica,sans-serif;font-size:9px;color:#1e293b;background:white;}
+      @page{margin:10mm;size:A4 portrait;}
       @media print{body{print-color-adjust:exact;-webkit-print-color-adjust:exact;}}
-      table{width:100%;border-collapse:collapse;}
-      th,td{padding:8px;border:1px solid #e2e8f0;vertical-align:top;}
-      th{background:#1e40af;color:white;font-size:10px;}
-      .label-col{background:#f8fafc;font-weight:600;width:150px;color:#374151;}
-      .best{background:#f0fdf4!important;font-weight:bold;}
-      .header{background:#1e40af;color:white;padding:12px 20px;border-radius:8px 8px 0 0;display:flex;justify-content:space-between;margin-bottom:12px;}
-      .score-bar{height:6px;background:#e2e8f0;border-radius:3px;margin-top:3px;}
-      .footer{margin-top:12px;padding:8px 20px;background:#1e40af;color:white;border-radius:0 0 8px 8px;font-size:8px;display:flex;justify-content:space-between;}
+      table{width:100%;border-collapse:collapse;table-layout:fixed;}
+      th,td{padding:6px;border:1px solid #e2e8f0;vertical-align:top;word-wrap:break-word;}
+      th{background:${color};color:white;font-size:9px;}
+      .label-col{background:#f8fafc;font-weight:600;color:#374151;width:90px;}
+      .best-cell{background:#f0fdf4;}
+      .header{background:${color};color:white;padding:10px 16px;border-radius:6px 6px 0 0;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+      .header-right{text-align:right;font-size:8px;opacity:0.9;line-height:1.6;}
+      .score-bar-bg{height:5px;background:#e2e8f0;border-radius:3px;overflow:hidden;margin-top:2px;}
+      .score-bar-fill{height:100%;border-radius:3px;}
+      .footer{margin-top:10px;padding:7px 16px;background:${color};color:white;border-radius:0 0 6px 6px;font-size:8px;display:flex;justify-content:space-between;}
+      .img-cell img{width:100%;height:70px;object-fit:cover;border-radius:4px;}
+      .tag{display:inline-block;font-size:7px;padding:1px 5px;border-radius:8px;background:#dbeafe;color:#1e40af;font-weight:600;margin:1px;}
+      .pt{font-size:8px;padding:1px 0;display:flex;gap:4px;}
     </style>
-    </head><body>${content.innerHTML}</body></html>`)
+    </head><body>
+    <div class="header">
+      <div><div style="font-size:14px;font-weight:bold;">✈ ${ag.name}</div><div style="font-size:8px;opacity:0.8;">${ag.slogan}</div></div>
+      <div class="header-right">${[ag.address,ag.phone,ag.email,ag.website].filter(Boolean).join(' · ')}</div>
+    </div>
+    <h2 style="font-size:12px;font-weight:bold;color:${color};margin-bottom:8px;text-align:center;">Comparaison hôtels — ${new Date().toLocaleDateString('fr-FR')}</h2>
+    ${content.innerHTML}
+    <div class="footer"><span>✈ ${ag.name}</span><span>Généré le ${new Date().toLocaleDateString('fr-FR')}</span></div>
+    </body></html>`)
     win.document.close()
     win.focus()
-    setTimeout(() => win.print(), 600)
+    setTimeout(() => win.print(), 700)
   }
 
   const COL_COLORS = ['#3b82f6', '#10b981', '#f59e0b']

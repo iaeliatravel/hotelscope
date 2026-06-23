@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { useToast } from '@/components/ui/use-toast'
 import { Plus, Pencil, Trash2, Loader2, Users, Baby } from 'lucide-react'
 import { BOARD_LABELS } from '@/lib/types'
-import { formatDate, formatPrice } from '@/lib/utils'
+import { formatDate } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 
 const SEASONS = [
@@ -41,7 +41,7 @@ const emptyForm = {
   board_type: 'all_inclusive',
   adults: '2',
   children: '0',
-  currency: 'EUR',
+  currency: 'DZD',
   price: '',
   source_platform: '',
   comment: '',
@@ -164,7 +164,7 @@ export function PriceManager({ hotelId }: PriceManagerProps) {
             <div key={s.label} className="bg-muted/30 rounded-xl p-3 text-center border">
               <p className="text-xs text-muted-foreground">{s.label}</p>
               <p className={cn('text-lg font-bold mt-1', s.color)}>
-                {formatPrice(s.value, prices[0]?.currency || 'EUR')}
+                {s.value.toLocaleString('fr-DZ')} DZD
               </p>
             </div>
           ))}
@@ -225,9 +225,9 @@ export function PriceManager({ hotelId }: PriceManagerProps) {
 
                 {/* Price */}
                 <div className="flex-shrink-0 text-right">
-                  <p className="text-base font-bold text-foreground">{formatPrice(p.price, p.currency)}</p>
+                  <p className="text-base font-bold text-foreground">{p.price.toLocaleString('fr-DZ')} DZD</p>
                   {p.price_per_person && (
-                    <p className="text-xs text-muted-foreground">{formatPrice(p.price_per_person, p.currency)}/pers.</p>
+                    <p className="text-xs text-muted-foreground">{Math.round(p.price_per_person).toLocaleString('fr-DZ')} DZD/pers.</p>
                   )}
                   <span className={cn('text-[10px] px-1.5 py-0.5 rounded border font-medium', STATUS_COLORS[p.status] || '')}>
                     {p.status}
@@ -322,16 +322,20 @@ export function PriceManager({ hotelId }: PriceManagerProps) {
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Devise</Label>
-              <Select value={form.currency} onValueChange={v => setForm(p => ({ ...p, currency: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {['EUR', 'USD', 'MAD', 'TND', 'DZD'].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <div className="flex h-9 items-center px-3 rounded-lg border bg-muted/50 text-sm font-semibold text-foreground">
+                DZD — Dinar Algérien
+              </div>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Plateforme source</Label>
-              <Input value={form.source_platform} onChange={e => setForm(p => ({ ...p, source_platform: e.target.value }))} placeholder="Booking, TUI…" />
+              <Select value={form.source_platform} onValueChange={v => setForm(p => ({ ...p, source_platform: v }))}>
+                <SelectTrigger><SelectValue placeholder="Choisir une plateforme…" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">— Autre / Non précisé</SelectItem>
+                  <SelectItem value="MyGO">MyGO</SelectItem>
+                  <SelectItem value="Flynbeds">Flynbeds</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Statut</Label>
@@ -353,11 +357,11 @@ export function PriceManager({ hotelId }: PriceManagerProps) {
             {/* Preview */}
             {form.price && (
               <div className="col-span-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800">
-                Prix total : <strong>{formatPrice(parseFloat(form.price), form.currency)}</strong>
+                Prix total : <strong>{parseFloat(form.price).toLocaleString('fr-DZ')} DZD</strong>
                 {' — '}
                 {parseInt(form.adults) + parseInt(form.children)} pers.
                 {' = '}
-                <strong>{formatPrice(parseFloat(form.price) / (parseInt(form.adults) + parseInt(form.children) || 1), form.currency)}</strong>/personne
+                <strong>{Math.round(parseFloat(form.price) / (parseInt(form.adults) + parseInt(form.children) || 1)).toLocaleString('fr-DZ')} DZD</strong>/personne
               </div>
             )}
           </div>

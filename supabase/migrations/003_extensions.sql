@@ -93,3 +93,63 @@ CREATE POLICY "profile_matches_update" ON public.hotel_profile_matches
 -- ============================================================
 CREATE OR REPLACE VIEW public.distinct_countries AS
   SELECT DISTINCT country FROM public.cities WHERE is_active = TRUE ORDER BY country;
+
+-- ============================================================
+-- AGENCY SETTINGS
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.agency_settings (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name TEXT NOT NULL DEFAULT 'Aelia Travel',
+  slogan TEXT DEFAULT 'Votre agence de voyage de confiance',
+  address TEXT DEFAULT 'Algérie',
+  phone TEXT DEFAULT '+213 XXX XXX XXX',
+  email TEXT DEFAULT 'contact@aeliatravel.com',
+  website TEXT DEFAULT 'www.aeliatravel.com',
+  logo_url TEXT,
+  primary_color TEXT DEFAULT '#1e40af',
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL
+);
+
+-- Seed with defaults (only one row)
+INSERT INTO public.agency_settings (id, name, slogan, address, phone, email, website)
+VALUES (
+  '00000000-0000-0000-0000-000000000001',
+  'Aelia Travel',
+  'Votre agence de voyage de confiance',
+  'Algérie',
+  '+213 XXX XXX XXX',
+  'contact@aeliatravel.com',
+  'www.aeliatravel.com'
+) ON CONFLICT (id) DO NOTHING;
+
+ALTER TABLE public.agency_settings ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "agency_settings_select" ON public.agency_settings
+  FOR SELECT TO authenticated USING (TRUE);
+
+CREATE POLICY "agency_settings_update" ON public.agency_settings
+  FOR UPDATE TO authenticated
+  USING (public.get_user_role() IN ('admin', 'agent'));
+
+CREATE POLICY "agency_settings_insert" ON public.agency_settings
+  FOR INSERT TO authenticated
+  WITH CHECK (public.get_user_role() = 'admin');
+
+CREATE TRIGGER agency_settings_updated_at
+  BEFORE UPDATE ON public.agency_settings
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+-- ============================================================
+-- HOTELS — nouvelles colonnes politiques hôtel
+-- ============================================================
+ALTER TABLE public.hotels
+  ADD COLUMN IF NOT EXISTS singles_policy TEXT DEFAULT 'non_applique'
+    CHECK (singles_policy IN ('familles_couples', 'accepte_celibataires', 'celibataires_demande', 'non_applique')),
+  ADD COLUMN IF NOT EXISTS burkini_policy TEXT DEFAULT 'non_applique'
+    CHECK (burkini_policy IN ('autorise', 'interdit', 'non_applique'));
+
+-- ============================================================
+-- PRICE SNAPSHOTS — restricting currency to DZD, source to known platforms
+-- ============================================================
+-- We handle this via frontend validation only (no need to alter constraint)

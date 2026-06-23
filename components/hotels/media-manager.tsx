@@ -70,6 +70,57 @@ function getPlatformColor(platform: string) {
   return colors[platform] || 'bg-slate-700 text-white'
 }
 
+function ImageUrlInput({ hotelId, onAdded }: { hotelId: string; onAdded: () => void }) {
+  const [url, setUrl] = useState('')
+  const [caption, setCaption] = useState('')
+  const [open, setOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const supabase = createClient()
+  const { toast } = useToast()
+
+  async function add() {
+    if (!url.trim()) return
+    setSaving(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    const { error } = await supabase.from('hotel_media').insert({
+      hotel_id: hotelId, author_id: user?.id,
+      type: 'image', url: url.trim(), caption: caption.trim() || null,
+    })
+    if (!error) {
+      toast({ title: 'Image ajoutée' })
+      setUrl(''); setCaption(''); setOpen(false); onAdded()
+    } else {
+      toast({ variant: 'destructive', title: 'Erreur', description: error.message })
+    }
+    setSaving(false)
+  }
+
+  if (!open) {
+    return (
+      <button type="button" onClick={() => setOpen(true)}
+        className="text-xs text-primary hover:underline flex items-center gap-1">
+        <Plus className="w-3 h-3" />Ajouter une image par URL
+      </button>
+    )
+  }
+
+  return (
+    <div className="flex-1 flex flex-col gap-2 p-3 bg-muted/30 rounded-lg border">
+      <Input value={url} onChange={e => setUrl(e.target.value)} placeholder="https://… (URL de l'image)" className="text-sm h-8" autoFocus />
+      <div className="flex gap-2">
+        <Input value={caption} onChange={e => setCaption(e.target.value)} placeholder="Légende (optionnel)" className="text-sm h-8 flex-1" />
+        <Button type="button" size="sm" className="h-8" onClick={add} disabled={!url.trim() || saving}>
+          {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Ajouter'}
+        </Button>
+        <Button type="button" size="sm" variant="ghost" className="h-8 px-2" onClick={() => setOpen(false)}>
+          <X className="w-3.5 h-3.5" />
+        </Button>
+      </div>
+      {url && <img src={url} alt="" className="w-full h-24 object-cover rounded-lg border" onError={e => (e.currentTarget.style.display='none')} />}
+    </div>
+  )
+}
+
 export function MediaManager({ hotelId }: MediaManagerProps) {
   const [media, setMedia] = useState<HotelMedia[]>([])
   const [loading, setLoading] = useState(true)
@@ -160,11 +211,13 @@ export function MediaManager({ hotelId }: MediaManagerProps) {
   return (
     <div className="space-y-6">
       {/* Upload zone */}
-      <div>
-        <Label className="text-sm mb-2 block">Ajouter des photos</Label>
+      <div className="space-y-3">
+        <Label className="text-sm block font-medium">Ajouter des photos</Label>
+
+        {/* Upload file */}
         <div
           onClick={() => fileInputRef.current?.click()}
-          className="border-2 border-dashed rounded-xl p-6 text-center cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-all"
+          className="border-2 border-dashed rounded-xl p-5 text-center cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-all"
         >
           {uploading ? (
             <div className="flex flex-col items-center gap-2">
@@ -174,12 +227,18 @@ export function MediaManager({ hotelId }: MediaManagerProps) {
           ) : (
             <>
               <Upload className="w-6 h-6 mx-auto text-muted-foreground mb-2" />
-              <p className="text-sm text-muted-foreground">Cliquez pour ajouter des photos</p>
-              <p className="text-xs text-muted-foreground/70 mt-0.5">JPEG, PNG, WebP — 10 MB max par fichier</p>
+              <p className="text-sm text-muted-foreground">Cliquez pour téléverser des photos</p>
+              <p className="text-xs text-muted-foreground/70 mt-0.5">JPEG, PNG, WebP — 10 MB max</p>
             </>
           )}
         </div>
         <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleFileUpload} />
+
+        {/* OR add by URL */}
+        <div className="flex gap-2 items-center">
+          <div className="flex-shrink-0 text-xs text-muted-foreground font-medium">ou par lien :</div>
+          <ImageUrlInput hotelId={hotelId} onAdded={load} />
+        </div>
       </div>
 
       {/* Add video/link */}

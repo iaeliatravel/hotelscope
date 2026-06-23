@@ -98,6 +98,26 @@ export default async function HotelDetailPage({ params }: { params: { id: string
                 {h.ambiance && (
                   <span className="text-xs px-2.5 py-1 rounded-md bg-muted text-muted-foreground capitalize">{h.ambiance}</span>
                 )}
+                {h.singles_policy && h.singles_policy !== 'non_applique' && (
+                  <span className={cn('text-xs px-2.5 py-1 rounded-md border font-medium', {
+                    'familles_couples': 'bg-blue-50 text-blue-700 border-blue-200',
+                    'accepte_celibataires': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                    'celibataires_demande': 'bg-amber-50 text-amber-700 border-amber-200',
+                  }[h.singles_policy as string] || 'bg-muted text-muted-foreground border-muted')}>
+                    {{
+                      'familles_couples': '👨‍👩‍👧 Familles & couples',
+                      'accepte_celibataires': '✅ Célibataires acceptés',
+                      'celibataires_demande': '📋 Célibataires sur demande',
+                    }[h.singles_policy as string] || h.singles_policy}
+                  </span>
+                )}
+                {h.burkini_policy && h.burkini_policy !== 'non_applique' && (
+                  <span className={cn('text-xs px-2.5 py-1 rounded-md border font-medium',
+                    h.burkini_policy === 'autorise' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'
+                  )}>
+                    {h.burkini_policy === 'autorise' ? '✅ Burkini autorisé' : '🚫 Burkini interdit'}
+                  </span>
+                )}
               </div>
 
               <div className="flex items-start gap-2 text-sm text-muted-foreground mb-3 flex-wrap">

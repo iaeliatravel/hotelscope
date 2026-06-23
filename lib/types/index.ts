@@ -75,6 +75,8 @@ export interface Hotel {
   tiktok_url: string | null
   instagram_url: string | null
   facebook_url: string | null
+  singles_policy: 'familles_couples' | 'accepte_celibataires' | 'celibataires_demande' | 'non_applique' | null
+  burkini_policy: 'autorise' | 'interdit' | 'non_applique' | null
   latitude: number | null
   longitude: number | null
   map_static_url: string | null

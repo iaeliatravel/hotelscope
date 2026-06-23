@@ -70,6 +70,22 @@ export function HotelCard({ hotel }: HotelCardProps) {
         )}
 
         {/* Footer */}
+        <div className="flex flex-wrap gap-1 mb-2">
+          {hotel.singles_policy && hotel.singles_policy !== 'non_applique' && (
+            <span className="text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-700">
+              {{
+                'familles_couples': '👨‍👩‍👧 Familles & couples',
+                'accepte_celibataires': '✅ Célibataires',
+                'celibataires_demande': '📋 Célibataires/demande',
+              }[hotel.singles_policy as string] || ''}
+            </span>
+          )}
+          {hotel.burkini_policy && hotel.burkini_policy !== 'non_applique' && (
+            <span className={cn('text-xs px-2 py-0.5 rounded', hotel.burkini_policy === 'autorise' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700')}>
+              {hotel.burkini_policy === 'autorise' ? '✅ Burkini autorisé' : '🚫 Burkini interdit'}
+            </span>
+          )}
+        </div>
         <div className="flex items-center justify-between pt-3 border-t">
           <div className="flex flex-wrap gap-1">
             {(hotel.board_types || []).slice(0, 2).map(bt => (

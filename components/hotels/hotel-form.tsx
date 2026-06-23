@@ -43,6 +43,8 @@ const hotelSchema = z.object({
   internal_notes: z.string().optional(),
   aelia_note: z.string().optional(),
   website_url: z.string().optional(),
+  singles_policy: z.string().optional(),
+  burkini_policy: z.string().optional(),
   tiktok_url: z.string().optional(),
   instagram_url: z.string().optional(),
   facebook_url: z.string().optional(),
@@ -126,6 +128,8 @@ export function HotelForm({ hotel, hotelScores }: HotelFormProps) {
       internal_notes: hotel?.internal_notes || '',
       aelia_note: hotel?.aelia_note || '',
       website_url: hotel?.website_url || '',
+      singles_policy: hotel?.singles_policy || 'non_applique',
+      burkini_policy: hotel?.burkini_policy || 'non_applique',
       tiktok_url: hotel?.tiktok_url || '',
       instagram_url: hotel?.instagram_url || '',
       facebook_url: hotel?.facebook_url || '',
@@ -198,6 +202,8 @@ export function HotelForm({ hotel, hotelScores }: HotelFormProps) {
       ...data,
       zone_id: data.zone_id || null,
       slug: slugify(data.name),
+      singles_policy: (data as any).singles_policy || 'non_applique',
+      burkini_policy: (data as any).burkini_policy || 'non_applique',
       address: locationData.address || null,
       latitude: locationData.latitude,
       longitude: locationData.longitude,
@@ -223,17 +229,24 @@ export function HotelForm({ hotel, hotelScores }: HotelFormProps) {
     }
 
     if (hotelId) {
+      // Build score payload with explicit keys (avoids spreading undefined values)
       const scorePayload = {
         hotel_id: hotelId,
-        ...scores,
-        average_score: avgScore,
-        final_score: avgScore,
+        location_score: Number(scores['location_score']) || 0,
+        beach_score: Number(scores['beach_score']) || 0,
+        food_score: Number(scores['food_score']) || 0,
+        rooms_score: Number(scores['rooms_score']) || 0,
+        animation_score: Number(scores['animation_score']) || 0,
+        cleanliness_score: Number(scores['cleanliness_score']) || 0,
+        value_score: Number(scores['value_score']) || 0,
+        commercial_score: Number(scores['commercial_score']) || 0,
+        reliability_score: Number(scores['reliability_score']) || 0,
+        average_score: Math.round(avgScore * 100) / 100,
+        final_score: Math.round(avgScore * 100) / 100,
       }
-      if (hotel) {
-        await supabase.from('hotel_scores').update(scorePayload).eq('hotel_id', hotelId)
-      } else {
-        await supabase.from('hotel_scores').insert(scorePayload)
-      }
+      const { error: scoreErr } = await supabase.from('hotel_scores')
+        .upsert(scorePayload, { onConflict: 'hotel_id' })
+      if (scoreErr) console.error('Score save error:', scoreErr)
 
       await supabase.from('activity_log').insert({
         user_id: user?.id,
@@ -425,6 +438,67 @@ export function HotelForm({ hotel, hotelScores }: HotelFormProps) {
                 {opt.label}
               </button>
             ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Politiques hôtel */}
+      <Card>
+        <CardHeader><CardTitle className="text-base">Politiques de l'hôtel</CardTitle></CardHeader>
+        <CardContent className="grid sm:grid-cols-2 gap-5">
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Politique célibataires / familles</Label>
+            <Controller name="singles_policy" control={control} render={({ field }) => (
+              <div className="flex flex-col gap-2">
+                {[
+                  { value: 'familles_couples', label: '👨‍👩‍👧 Familles et couples uniquement', color: 'border-blue-200 bg-blue-50 text-blue-800' },
+                  { value: 'accepte_celibataires', label: '✅ Accepte les célibataires', color: 'border-emerald-200 bg-emerald-50 text-emerald-800' },
+                  { value: 'celibataires_demande', label: '📋 Célibataires sur demande', color: 'border-amber-200 bg-amber-50 text-amber-800' },
+                  { value: 'non_applique', label: '— Non appliqué', color: 'border-muted bg-muted/30 text-muted-foreground' },
+                ].map(opt => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => field.onChange(opt.value)}
+                    className={cn(
+                      'px-3 py-2 rounded-lg border text-xs font-medium text-left transition-all',
+                      field.value === opt.value
+                        ? opt.color + ' ring-2 ring-offset-1 ring-primary/30'
+                        : 'bg-white border-input text-muted-foreground hover:border-primary/30'
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )} />
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Politique burkini</Label>
+            <Controller name="burkini_policy" control={control} render={({ field }) => (
+              <div className="flex flex-col gap-2">
+                {[
+                  { value: 'autorise', label: '✅ Burkini autorisé', color: 'border-emerald-200 bg-emerald-50 text-emerald-800' },
+                  { value: 'interdit', label: '🚫 Burkini interdit', color: 'border-red-200 bg-red-50 text-red-800' },
+                  { value: 'non_applique', label: '— Non appliqué / Non précisé', color: 'border-muted bg-muted/30 text-muted-foreground' },
+                ].map(opt => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => field.onChange(opt.value)}
+                    className={cn(
+                      'px-3 py-2 rounded-lg border text-xs font-medium text-left transition-all',
+                      field.value === opt.value
+                        ? opt.color + ' ring-2 ring-offset-1 ring-primary/30'
+                        : 'bg-white border-input text-muted-foreground hover:border-primary/30'
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )} />
           </div>
         </CardContent>
       </Card>
