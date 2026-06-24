@@ -253,27 +253,38 @@ export default async function HotelDetailPage({ params }: { params: { id: string
               </Card>
             </div>
 
-            {/* Quality aspects */}
-            {(h.room_quality || h.food_quality || h.pool_quality || h.beach_quality || h.animation_level || h.value_for_money) && (
-              <Card>
-                <CardHeader className="pb-2"><CardTitle className="text-sm">Qualité par aspect</CardTitle></CardHeader>
-                <CardContent className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                  {[
-                    { label: 'Chambres', value: h.room_quality },
-                    { label: 'Nourriture', value: h.food_quality },
-                    { label: 'Piscine', value: h.pool_quality },
-                    { label: 'Plage', value: h.beach_quality },
-                    { label: 'Animation', value: h.animation_level },
-                    { label: 'Rapport Q/P', value: h.value_for_money },
-                  ].filter(i => i.value).map(item => (
-                    <div key={item.label}>
-                      <p className="text-xs text-muted-foreground mb-0.5">{item.label}</p>
-                      <p className="text-sm font-medium">{item.value}</p>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            )}
+            {/* Quality aspects — always shown */}
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm">Qualité par aspect</CardTitle>
+                  {!h.room_quality && !h.food_quality && !h.pool_quality && !h.beach_quality && !h.animation_level && !h.value_for_money && (
+                    <Link href={`/hotels/${h.id}/edit`} className="text-xs text-primary hover:underline">
+                      Renseigner →
+                    </Link>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {[
+                  { label: '🛏️ Chambres', value: h.room_quality },
+                  { label: '🍽️ Nourriture', value: h.food_quality },
+                  { label: '🏊 Piscine', value: h.pool_quality },
+                  { label: '🏖️ Plage', value: h.beach_quality },
+                  { label: '🎉 Animation', value: h.animation_level },
+                  { label: '⚖️ Rapport Q/P', value: h.value_for_money },
+                ].map(item => (
+                  <div key={item.label} className="rounded-lg border bg-muted/20 p-3">
+                    <p className="text-xs text-muted-foreground mb-1">{item.label}</p>
+                    {item.value ? (
+                      <p className="text-sm font-medium leading-snug">{item.value}</p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground/50 italic">Non renseigné</p>
+                    )}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
 
             {/* Profile matcher — dropdown */}
             <Card>

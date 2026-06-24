@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useToast } from '@/components/ui/use-toast'
 import { Loader2, Plus, X, Trash2, AlertTriangle, Sparkles } from 'lucide-react'
-import { cn, slugify, calculateAverageScore, generateCommercialSummary } from '@/lib/utils'
+import { slugify, calculateAverageScore, generateCommercialSummary, cn } from '@/lib/utils'
 import type { City, Zone, Hotel } from '@/lib/types'
 import { LocationPicker } from '@/components/hotels/location-picker'
 import { MediaManager } from '@/components/hotels/media-manager'

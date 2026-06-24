@@ -96,7 +96,7 @@ export default function ComparePage() {
       .score-bar-bg{height:5px;background:#e2e8f0;border-radius:3px;overflow:hidden;margin-top:2px;}
       .score-bar-fill{height:100%;border-radius:3px;}
       .footer{margin-top:10px;padding:7px 16px;background:${color};color:white;border-radius:0 0 6px 6px;font-size:8px;display:flex;justify-content:space-between;}
-      .img-cell img{width:100%;height:70px;object-fit:cover;border-radius:4px;}
+      .img-cell{display:flex;flex-direction:column;gap:4px;} .img-cell img{width:100%;height:60px;object-fit:cover;border-radius:4px;border:1px solid #e2e8f0;}
       .tag{display:inline-block;font-size:7px;padding:1px 5px;border-radius:8px;background:#dbeafe;color:#1e40af;font-weight:600;margin:1px;}
       .pt{font-size:8px;padding:1px 0;display:flex;gap:4px;}
     </style>
@@ -195,18 +195,25 @@ export default function ComparePage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {/* Cover images */}
+                  {/* Photos — up to 3 per hotel, each hotel isolated in its own td */}
                   <tr className="border-b">
-                    <td className="p-3 bg-muted/20 text-xs font-semibold text-muted-foreground">Photo</td>
+                    <td className="p-3 bg-muted/20 text-xs font-semibold text-muted-foreground align-top">Photos</td>
                     {activeHotels.map(h => {
-                      const img = (h.media || []).find((m: any) => m.type === 'image')
+                      const imgs = (h.media || []).filter((m: any) => m.type === 'image' || m.type === 'capture').slice(0, 3)
                       return (
-                        <td key={h.id} className="p-3">
-                          {img ? (
-                            <img src={img.url} alt="" className="w-full h-28 object-cover rounded-lg" />
-                          ) : (
-                            <div className="w-full h-28 bg-muted rounded-lg flex items-center justify-center text-3xl opacity-30">🏨</div>
-                          )}
+                        <td key={h.id} className="p-2 align-top">
+                          <div className="flex flex-col gap-1.5">
+                            {imgs.length > 0 ? imgs.map((img: any) => (
+                              <img
+                                key={img.id}
+                                src={img.url}
+                                alt=""
+                                className="w-full h-24 object-cover rounded-lg border"
+                              />
+                            )) : (
+                              <div className="w-full h-24 bg-muted rounded-lg flex items-center justify-center text-3xl opacity-20">🏨</div>
+                            )}
+                          </div>
                         </td>
                       )
                     })}
@@ -353,6 +360,28 @@ export default function ComparePage() {
                       </td>
                     ))}
                   </tr>
+
+                  {/* Quality aspects */}
+                  <tr className="border-b">
+                    <td colSpan={count + 1} className="p-2 bg-teal-600 text-white text-xs font-bold tracking-wider">QUALITÉ PAR ASPECT</td>
+                  </tr>
+                  {[
+                    { key: 'room_quality', label: '🛏️ Chambres' },
+                    { key: 'food_quality', label: '🍽️ Nourriture' },
+                    { key: 'pool_quality', label: '🏊 Piscine' },
+                    { key: 'beach_quality', label: '🏖️ Plage' },
+                    { key: 'animation_level', label: '🎉 Animation' },
+                    { key: 'value_for_money', label: '⚖️ Rapport Q/P' },
+                  ].map((q, qi) => (
+                    <tr key={q.key} className={cn('border-b', qi % 2 === 0 && 'bg-muted/10')}>
+                      <td className="p-3 bg-muted/20 text-xs font-semibold text-muted-foreground">{q.label}</td>
+                      {activeHotels.map(h => (
+                        <td key={h.id} className="p-3 text-xs">
+                          {(h as any)[q.key] || <span className="text-muted-foreground/50 italic">—</span>}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
 
                   {/* Summary */}
                   <tr className="border-b">
