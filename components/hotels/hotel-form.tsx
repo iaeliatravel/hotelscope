@@ -88,9 +88,17 @@ export function HotelForm({ hotel, hotelScores }: HotelFormProps) {
   const [strengths, setStrengths] = useState<string[]>(hotel?.strengths || [])
   const [weaknesses, setWeaknesses] = useState<string[]>(hotel?.weaknesses || [])
   const [boardTypes, setBoardTypes] = useState<string[]>(hotel?.board_types || [])
-  const [scores, setScores] = useState<Record<string, number>>(
-    hotelScores || SCORE_FIELDS.reduce((a, f) => ({ ...a, [f.key]: 0 }), {})
-  )
+  const [scores, setScores] = useState<Record<string, number>>(() => {
+    const defaults = SCORE_FIELDS.reduce((a, f) => ({ ...a, [f.key]: 0 }), {} as Record<string, number>)
+    if (!hotelScores) return defaults
+    // Merge: ensure every key exists and is a valid number
+    const merged: Record<string, number> = { ...defaults }
+    for (const f of SCORE_FIELDS) {
+      const v = hotelScores[f.key]
+      merged[f.key] = (v !== undefined && v !== null && !isNaN(Number(v))) ? Number(v) : 0
+    }
+    return merged
+  })
   const [newStrength, setNewStrength] = useState('')
   const [newWeakness, setNewWeakness] = useState('')
   const [locationData, setLocationData] = useState({
@@ -175,7 +183,8 @@ export function HotelForm({ hotel, hotelScores }: HotelFormProps) {
   }
 
   function updateScore(key: string, val: number) {
-    setScores(p => ({ ...p, [key]: Math.min(10, Math.max(0, val)) }))
+    const safe = isNaN(val) ? 0 : Math.min(10, Math.max(0, val))
+    setScores(p => ({ ...p, [key]: safe }))
   }
 
   function autoSummary() {
@@ -230,23 +239,28 @@ export function HotelForm({ hotel, hotelScores }: HotelFormProps) {
 
     if (hotelId) {
       // Build score payload with explicit keys (avoids spreading undefined values)
+      const toNum = (v: unknown) => {
+        const n = Number(v)
+        return isNaN(n) ? 0 : Math.round(n * 100) / 100
+      }
       const scorePayload = {
         hotel_id: hotelId,
-        location_score: Number(scores['location_score']) || 0,
-        beach_score: Number(scores['beach_score']) || 0,
-        food_score: Number(scores['food_score']) || 0,
-        rooms_score: Number(scores['rooms_score']) || 0,
-        animation_score: Number(scores['animation_score']) || 0,
-        cleanliness_score: Number(scores['cleanliness_score']) || 0,
-        value_score: Number(scores['value_score']) || 0,
-        commercial_score: Number(scores['commercial_score']) || 0,
-        reliability_score: Number(scores['reliability_score']) || 0,
+        location_score: toNum(scores['location_score']),
+        beach_score: toNum(scores['beach_score']),
+        food_score: toNum(scores['food_score']),
+        rooms_score: toNum(scores['rooms_score']),
+        animation_score: toNum(scores['animation_score']),
+        cleanliness_score: toNum(scores['cleanliness_score']),
+        value_score: toNum(scores['value_score']),
+        commercial_score: toNum(scores['commercial_score']),
+        reliability_score: toNum(scores['reliability_score']),
         average_score: Math.round(avgScore * 100) / 100,
         final_score: Math.round(avgScore * 100) / 100,
       }
-      const { error: scoreErr } = await supabase.from('hotel_scores')
+      const { error: scoreErr } = await supabase
+        .from('hotel_scores')
         .upsert(scorePayload, { onConflict: 'hotel_id' })
-      if (scoreErr) console.error('Score save error:', scoreErr)
+      if (scoreErr) console.error('Score upsert error:', scoreErr.message, scoreErr.details)
 
       await supabase.from('activity_log').insert({
         user_id: user?.id,
@@ -566,7 +580,11 @@ export function HotelForm({ hotel, hotelScores }: HotelFormProps) {
                 <Input
                   type="text"
                   inputMode="decimal"
-                  value={scores[f.key] === 0 ? '' : String(scores[f.key]).replace('.', ',')}
+                  value={(() => {
+                    const v = scores[f.key]
+                    if (v === undefined || v === null || v === 0) return ''
+                    return String(v).replace('.', ',')
+                  })()}
                   onChange={e => {
                     const raw = e.target.value.replace(',', '.')
                     const val = parseFloat(raw)

@@ -200,7 +200,6 @@ body{font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#1e293b;backgro
             const starsNum = parseInt(h?.category) || 0
             const GOOGLE_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''
             const color = agency.primary_color || '#1e40af'
-            const imgCols = images.length === 1 ? 1 : images.length === 2 ? 2 : 3
             const SINGLES_LABELS: Record<string, string> = {
               familles_couples: '👨‍👩‍👧 Familles & couples uniquement',
               accepte_celibataires: '✅ Célibataires acceptés',
@@ -266,17 +265,35 @@ body{font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#1e293b;backgro
                   )}
                 </div>
 
-                {/* IMAGES */}
+                {/* IMAGES — 3 photos max, same layout as comparison page */}
                 {images.length > 0 && (
                   <div style={{ margin: '10px 0' }}>
-                    <div style={{ fontSize: 10, fontWeight: 'bold', color, textTransform: 'uppercase', letterSpacing: 0.5, borderBottom: `2px solid ${color}44`, paddingBottom: 3, marginBottom: 7 }}>Galerie photos</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${imgCols}, 1fr)`, gap: 5 }}>
-                      {images.map((img: any) => (
-                        <div key={img.id} style={{ aspectRatio: '4/3', borderRadius: 5, overflow: 'hidden', border: '1px solid #e2e8f0' }}>
-                          <img src={img.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <div style={{ fontSize: 10, fontWeight: 'bold', color, textTransform: 'uppercase', letterSpacing: 0.5, borderBottom: `2px solid ${color}44`, paddingBottom: 3, marginBottom: 7 }}>
+                      Galerie photos ({images.length} photo{images.length > 1 ? 's' : ''})
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
+                      {images.slice(0, 3).map((img: any) => (
+                        <div key={img.id} style={{ borderRadius: 6, overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+                          <img
+                            src={img.url}
+                            alt={img.caption || ''}
+                            style={{ width: '100%', height: 130, objectFit: 'cover', display: 'block' }}
+                          />
                         </div>
                       ))}
+                      {/* Fill empty slots to keep grid consistent */}
+                      {images.length === 1 && [1,2].map(i => (
+                        <div key={i} style={{ borderRadius: 6, border: '1px dashed #e2e8f0', height: 130 }} />
+                      ))}
+                      {images.length === 2 && (
+                        <div style={{ borderRadius: 6, border: '1px dashed #e2e8f0', height: 130 }} />
+                      )}
                     </div>
+                    {images.length > 3 && (
+                      <div style={{ fontSize: 8, color: '#94a3b8', textAlign: 'right', marginTop: 3 }}>
+                        +{images.length - 3} photo{images.length - 3 > 1 ? 's' : ''} supplémentaire{images.length - 3 > 1 ? 's' : ''} dans l'application
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -306,8 +323,23 @@ body{font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#1e293b;backgro
                       {[
                         { label: 'Distance plage', value: h.beach_distance || '—' },
                         { label: 'Type de plage', value: h.beach_type?.replace(/_/g,' ') || '—' },
-                        { label: 'Animation', value: h.animation_level || '—' },
                         { label: 'Clientèle', value: h.target_audience || '—' },
+                        {
+                          label: 'Politique',
+                          value: h.singles_policy && h.singles_policy !== 'non_applique'
+                            ? ({
+                                familles_couples: '👨‍👩‍👧 Familles & couples',
+                                accepte_celibataires: '✅ Célibataires acceptés',
+                                celibataires_demande: '📋 Célibataires/demande',
+                              } as Record<string,string>)[h.singles_policy] || h.singles_policy
+                            : '—'
+                        },
+                        {
+                          label: 'Burkini',
+                          value: h.burkini_policy && h.burkini_policy !== 'non_applique'
+                            ? h.burkini_policy === 'autorise' ? '✅ Autorisé' : '🚫 Interdit'
+                            : '—'
+                        },
                       ].map(({ label, value }) => (
                         <div key={label} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 5, padding: '6px 8px' }}>
                           <div style={{ fontSize: 8, color: '#64748b', textTransform: 'uppercase' }}>{label}</div>
@@ -370,6 +402,30 @@ body{font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#1e293b;backgro
                     )}
                   </div>
                 </div>
+
+                {/* QUALITY TEXT EVALUATIONS */}
+                {(h.room_quality || h.food_quality || h.pool_quality || h.beach_quality || h.animation_level || h.value_for_money) && (
+                  <div style={{ margin: '10px 0' }}>
+                    <div style={{ fontSize: 10, fontWeight: 'bold', color, textTransform: 'uppercase', letterSpacing: 0.5, borderBottom: `2px solid ${color}44`, paddingBottom: 3, marginBottom: 7 }}>
+                      Évaluation des prestations
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+                      {[
+                        { label: '🛏️ Chambres', value: h.room_quality },
+                        { label: '🍽️ Nourriture', value: h.food_quality },
+                        { label: '🏊 Piscine', value: h.pool_quality },
+                        { label: '🏖️ Plage', value: h.beach_quality },
+                        { label: '🎉 Animation', value: h.animation_level },
+                        { label: '⚖️ Rapport Q/P', value: h.value_for_money },
+                      ].filter(i => i.value).map(({ label, value }) => (
+                        <div key={label} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 5, padding: '7px 9px' }}>
+                          <div style={{ fontSize: 8, color: '#64748b', textTransform: 'uppercase', marginBottom: 3 }}>{label}</div>
+                          <div style={{ fontSize: 10, color: '#1e293b', lineHeight: 1.4 }}>{value}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* SUMMARY */}
                 {h.commercial_summary && (

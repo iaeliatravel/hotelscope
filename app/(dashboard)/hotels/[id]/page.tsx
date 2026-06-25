@@ -221,6 +221,44 @@ export default async function HotelDetailPage({ params }: { params: { id: string
           </Card>
         )}
 
+        {/* Quality aspects — always visible, outside tabs */}
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <span>🏅</span> Évaluation des prestations
+              </CardTitle>
+              {!h.room_quality && !h.food_quality && !h.pool_quality && !h.beach_quality && !h.animation_level && !h.value_for_money && (
+                <Link href={`/hotels/${h.id}/edit`} className="text-xs text-primary hover:underline">
+                  Renseigner →
+                </Link>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+            {[
+              { label: '🛏️ Chambres', value: h.room_quality },
+              { label: '🍽️ Nourriture', value: h.food_quality },
+              { label: '🏊 Piscine', value: h.pool_quality },
+              { label: '🏖️ Plage', value: h.beach_quality },
+              { label: '🎉 Animation', value: h.animation_level },
+              { label: '⚖️ Rapport Q/P', value: h.value_for_money },
+            ].map(item => (
+              <div key={item.label} className={cn(
+                'rounded-lg border p-3 transition-colors',
+                item.value ? 'bg-white' : 'bg-muted/20'
+              )}>
+                <p className="text-xs text-muted-foreground mb-1.5 font-medium">{item.label}</p>
+                {item.value ? (
+                  <p className="text-sm font-semibold text-foreground leading-snug">{item.value}</p>
+                ) : (
+                  <p className="text-xs text-muted-foreground/40 italic">Non renseigné</p>
+                )}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
         {/* Tabs */}
         <Tabs defaultValue="overview">
           <TabsList className="w-full grid grid-cols-4">
@@ -252,39 +290,6 @@ export default async function HotelDetailPage({ params }: { params: { id: string
                 </CardContent>
               </Card>
             </div>
-
-            {/* Quality aspects — always shown */}
-            <Card>
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm">Qualité par aspect</CardTitle>
-                  {!h.room_quality && !h.food_quality && !h.pool_quality && !h.beach_quality && !h.animation_level && !h.value_for_money && (
-                    <Link href={`/hotels/${h.id}/edit`} className="text-xs text-primary hover:underline">
-                      Renseigner →
-                    </Link>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {[
-                  { label: '🛏️ Chambres', value: h.room_quality },
-                  { label: '🍽️ Nourriture', value: h.food_quality },
-                  { label: '🏊 Piscine', value: h.pool_quality },
-                  { label: '🏖️ Plage', value: h.beach_quality },
-                  { label: '🎉 Animation', value: h.animation_level },
-                  { label: '⚖️ Rapport Q/P', value: h.value_for_money },
-                ].map(item => (
-                  <div key={item.label} className="rounded-lg border bg-muted/20 p-3">
-                    <p className="text-xs text-muted-foreground mb-1">{item.label}</p>
-                    {item.value ? (
-                      <p className="text-sm font-medium leading-snug">{item.value}</p>
-                    ) : (
-                      <p className="text-xs text-muted-foreground/50 italic">Non renseigné</p>
-                    )}
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
 
             {/* Profile matcher — dropdown */}
             <Card>
