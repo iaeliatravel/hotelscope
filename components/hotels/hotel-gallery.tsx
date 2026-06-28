@@ -44,16 +44,36 @@ export function HotelGallery({ hotelId, initialMedia }: HotelGalleryProps) {
   const videos = media.filter(m => m.type === 'social')
 
   async function deleteMedia(item: HotelMedia) {
-    // Delete from storage if it's an uploaded image
-    if (item.type === 'image' && item.url.includes('/hotel-media/')) {
-      const path = item.url.split('/hotel-media/')[1]
-      if (path) await supabase.storage.from('hotel-media').remove([path])
-    }
-    const { error } = await supabase.from('hotel_media').delete().eq('id', item.id)
-    if (error) { toast({ variant: 'destructive', title: 'Erreur', description: error.message }); return }
+    // Optimistically update UI first for fast feedback
     setMedia(prev => prev.filter(m => m.id !== item.id))
-    toast({ title: 'Photo supprimée' })
-    if (lightboxIdx !== null && lightboxIdx >= images.length - 1) setLightboxIdx(null)
+    if (lightboxIdx !== null) setLightboxIdx(null)
+
+    // Delete record from DB
+    const { error: dbErr } = await supabase.from('hotel_media').delete().eq('id', item.id)
+    if (dbErr) {
+      // Rollback UI on error
+      setMedia(prev => [...prev, item])
+      toast({ variant: 'destructive', title: 'Erreur suppression', description: dbErr.message })
+      return
+    }
+
+    // Delete from storage if it was uploaded (not a remote URL)
+    if (item.url.includes('/object/public/hotel-media/')) {
+      try {
+        // Extract path: everything after /object/public/hotel-media/
+        const pathPart = item.url.split('/object/public/hotel-media/')[1]
+        // Remove query params if any
+        const cleanPath = pathPart?.split('?')[0]
+        if (cleanPath) {
+          const { error: storErr } = await supabase.storage.from('hotel-media').remove([cleanPath])
+          if (storErr) console.warn('Storage delete warning:', storErr.message)
+        }
+      } catch (e) {
+        console.warn('Storage path extraction failed', e)
+      }
+    }
+
+    toast({ title: 'Supprimé' })
   }
 
   function prevImg() {

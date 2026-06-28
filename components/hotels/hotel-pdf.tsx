@@ -74,9 +74,11 @@ export function HotelPdfButton({ hotelId, hotelName }: HotelPdfProps) {
     for (const vid of socialVideos) {
       try {
         codes[vid.id] = await QRCode.toDataURL(vid.url, {
-          width: 120, margin: 2,
+          type: 'image/png',
+          width: 160,
+          margin: 2,
           color: { dark: color, light: '#ffffff' },
-          errorCorrectionLevel: 'M',
+          errorCorrectionLevel: 'L',
         })
       } catch (e) {
         console.warn('QR failed for video:', vid.url, e)
@@ -87,9 +89,11 @@ export function HotelPdfButton({ hotelId, hotelName }: HotelPdfProps) {
     if (mapsUrl) {
       try {
         codes['maps'] = await QRCode.toDataURL(mapsUrl, {
-          width: 120, margin: 2,
+          type: 'image/png',
+          width: 160,
+          margin: 2,
           color: { dark: color, light: '#ffffff' },
-          errorCorrectionLevel: 'M',
+          errorCorrectionLevel: 'L',
         })
       } catch (e) {
         console.warn('QR maps failed', e)
@@ -459,27 +463,41 @@ body{font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#1e293b;backgro
                   </div>
                 )}
 
-                {/* QR CODES VIDEOS */}
+                {/* QR CODES VIDEOS — show section always if videos exist */}
                 {videos.length > 0 && (
                   <div style={{ margin: '10px 0' }}>
                     <div style={{ fontSize: 10, fontWeight: 'bold', color, textTransform: 'uppercase', letterSpacing: 0.5, borderBottom: `2px solid ${color}44`, paddingBottom: 3, marginBottom: 7 }}>
-                      Vidéos & Réseaux sociaux — Scannez pour accéder
+                      Vidéos & Réseaux sociaux ({videos.length}) — Scannez les QR codes
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
-                      {videos.map((vid: any) => (
-                        <div key={vid.id} style={{ textAlign: 'center', padding: 8, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6 }}>
-                          {qrCodes[vid.id] ? (
-                            <img src={qrCodes[vid.id]} style={{ width: 72, height: 72, margin: '0 auto', display: 'block' }} alt="QR" />
-                          ) : (
-                            <div style={{ width: 72, height: 72, margin: '0 auto', background: '#e2e8f0', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
-                              🎬
+                      {videos.map((vid: any) => {
+                        const qr = qrCodes[vid.id]
+                        return (
+                          <div key={vid.id} style={{ textAlign: 'center', padding: 8, background: '#f8fafc', border: `1px solid ${qr ? '#bfdbfe' : '#e2e8f0'}`, borderRadius: 6 }}>
+                            {qr ? (
+                              <img
+                                src={qr}
+                                style={{ width: 80, height: 80, margin: '0 auto', display: 'block', imageRendering: 'pixelated' }}
+                                alt="QR code"
+                              />
+                            ) : (
+                              <div style={{ width: 80, height: 80, margin: '0 auto', background: '#f1f5f9', borderRadius: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                                <span style={{ fontSize: 24 }}>🎬</span>
+                                <span style={{ fontSize: 7, color: '#94a3b8' }}>QR non généré</span>
+                              </div>
+                            )}
+                            <div style={{ fontSize: 9, color: '#374151', marginTop: 5, fontWeight: 600 }}>
+                              {vid.source ? vid.source.charAt(0).toUpperCase() + vid.source.slice(1) : 'Vidéo'}
                             </div>
-                          )}
-                          <div style={{ fontSize: 8, color: '#64748b', marginTop: 4, wordBreak: 'break-all' }}>
-                            {vid.caption || vid.source || 'Vidéo'}
+                            <div style={{ fontSize: 7, color: '#94a3b8', marginTop: 2, wordBreak: 'break-all', lineHeight: 1.3 }}>
+                              {vid.caption || vid.url.substring(0, 40) + '...'}
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        )
+                      })}
+                    </div>
+                    <div style={{ fontSize: 8, color: '#94a3b8', textAlign: 'center', marginTop: 6 }}>
+                      Si les QR codes ne s'affichent pas, ouvrez l'application pour les générer à nouveau
                     </div>
                   </div>
                 )}

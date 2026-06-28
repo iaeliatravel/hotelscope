@@ -86,7 +86,7 @@ export default function ComparePage() {
       body{font-family:Arial,Helvetica,sans-serif;font-size:9px;color:#1e293b;background:white;}
       @page{margin:10mm;size:A4 portrait;}
       @media print{body{print-color-adjust:exact;-webkit-print-color-adjust:exact;}}
-      table{width:100%;border-collapse:collapse;table-layout:fixed;}
+      table{width:100%;border-collapse:collapse;table-layout:fixed;} .print-imgs img{width:100%!important;height:65px!important;object-fit:cover!important;border-radius:4px;border:1px solid #e2e8f0;display:block;margin-bottom:4px;} .print-imgs{vertical-align:top;}
       th,td{padding:6px;border:1px solid #e2e8f0;vertical-align:top;word-wrap:break-word;}
       th{background:${color};color:white;font-size:9px;}
       .label-col{background:#f8fafc;font-weight:600;color:#374151;width:90px;}
@@ -96,7 +96,7 @@ export default function ComparePage() {
       .score-bar-bg{height:5px;background:#e2e8f0;border-radius:3px;overflow:hidden;margin-top:2px;}
       .score-bar-fill{height:100%;border-radius:3px;}
       .footer{margin-top:10px;padding:7px 16px;background:${color};color:white;border-radius:0 0 6px 6px;font-size:8px;display:flex;justify-content:space-between;}
-      .img-cell{display:flex;flex-direction:column;gap:4px;} .img-cell img{width:100%;height:60px;object-fit:cover;border-radius:4px;border:1px solid #e2e8f0;}
+      .imgs-col{display:flex;flex-direction:column;gap:5px;} .imgs-col img{width:100%;height:65px;object-fit:cover;border-radius:4px;border:1px solid #e2e8f0;display:block;}
       .tag{display:inline-block;font-size:7px;padding:1px 5px;border-radius:8px;background:#dbeafe;color:#1e40af;font-weight:600;margin:1px;}
       .pt{font-size:8px;padding:1px 0;display:flex;gap:4px;}
     </style>
@@ -195,25 +195,28 @@ export default function ComparePage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {/* Photos — up to 3 per hotel, each hotel isolated in its own td */}
+                  {/* Photos — up to 3, stacked, same as web layout */}
                   <tr className="border-b">
                     <td className="p-3 bg-muted/20 text-xs font-semibold text-muted-foreground align-top">Photos</td>
                     {activeHotels.map(h => {
                       const imgs = (h.media || []).filter((m: any) => m.type === 'image' || m.type === 'capture').slice(0, 3)
                       return (
-                        <td key={h.id} className="p-2 align-top">
-                          <div className="flex flex-col gap-1.5">
-                            {imgs.length > 0 ? imgs.map((img: any) => (
-                              <img
-                                key={img.id}
-                                src={img.url}
-                                alt=""
-                                className="w-full h-24 object-cover rounded-lg border"
-                              />
-                            )) : (
-                              <div className="w-full h-24 bg-muted rounded-lg flex items-center justify-center text-3xl opacity-20">🏨</div>
-                            )}
-                          </div>
+                        <td key={h.id} className="p-2 align-top imgs-col print-imgs">
+                          {imgs.length > 0 ? (
+                            <div className="flex flex-col gap-2">
+                              {imgs.map((img: any) => (
+                                <img
+                                  key={img.id}
+                                  src={img.url}
+                                  alt=""
+                                  className="w-full h-20 sm:h-24 object-cover rounded-lg border"
+                                  style={{ display: 'block', width: '100%', objectFit: 'cover' }}
+                                />
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="w-full h-20 bg-muted rounded-lg flex items-center justify-center text-2xl opacity-20 border">🏨</div>
+                          )}
                         </td>
                       )
                     })}
