@@ -7,7 +7,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Loader2, FileDown } from 'lucide-react'
 import { BOARD_LABELS } from '@/lib/types'
 import { formatDate } from '@/lib/utils'
-import QRCode from 'qrcode'
 
 interface HotelPdfProps {
   hotelId: string
@@ -73,13 +72,18 @@ export function HotelPdfButton({ hotelId, hotelName }: HotelPdfProps) {
 
     for (const vid of socialVideos) {
       try {
-        codes[vid.id] = await QRCode.toDataURL(vid.url, {
-          type: 'image/png',
-          width: 160,
-          margin: 2,
-          color: { dark: color, light: '#ffffff' },
-          errorCorrectionLevel: 'L',
-        })
+        // Use QR Server API - works in all environments without Canvas
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(vid.url)}&format=png&margin=4`
+        const qrRes = await fetch(qrUrl)
+        if (qrRes.ok) {
+          const blob = await qrRes.blob()
+          codes[vid.id] = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader()
+            reader.onload = () => resolve(reader.result as string)
+            reader.onerror = reject
+            reader.readAsDataURL(blob)
+          })
+        }
       } catch (e) {
         console.warn('QR failed for video:', vid.url, e)
       }
@@ -88,13 +92,17 @@ export function HotelPdfButton({ hotelId, hotelName }: HotelPdfProps) {
     const mapsUrl = (h as any)?.google_maps_url
     if (mapsUrl) {
       try {
-        codes['maps'] = await QRCode.toDataURL(mapsUrl, {
-          type: 'image/png',
-          width: 160,
-          margin: 2,
-          color: { dark: color, light: '#ffffff' },
-          errorCorrectionLevel: 'L',
-        })
+        const mapsQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(mapsUrl)}&format=png&margin=4`
+        const mapsRes = await fetch(mapsQrUrl)
+        if (mapsRes.ok) {
+          const blob = await mapsRes.blob()
+          codes['maps'] = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader()
+            reader.onload = () => resolve(reader.result as string)
+            reader.onerror = reject
+            reader.readAsDataURL(blob)
+          })
+        }
       } catch (e) {
         console.warn('QR maps failed', e)
       }

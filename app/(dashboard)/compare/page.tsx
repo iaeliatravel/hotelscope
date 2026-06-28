@@ -60,7 +60,7 @@ export default function ComparePage() {
     setLoading(true)
     const { data } = await supabase
       .from('hotels')
-      .select('*, city:cities(name), zone:zones(name), scores:hotel_scores(*), media:hotel_media(url, type), profile_matches:hotel_profile_matches(*, profile:client_profiles(*))')
+      .select('*, city:cities(name), zone:zones(name), scores:hotel_scores(*), media:hotel_media(id, url, type, caption), profile_matches:hotel_profile_matches(*, profile:client_profiles(*))')
       .eq('id', id).single()
     const newHotels = [...hotels]
     newHotels[idx] = data
@@ -204,13 +204,14 @@ export default function ComparePage() {
                         <td key={h.id} className="p-2 align-top imgs-col print-imgs">
                           {imgs.length > 0 ? (
                             <div className="flex flex-col gap-2">
-                              {imgs.map((img: any) => (
+                              {imgs.map((img: any, imgIdx: number) => (
                                 <img
-                                  key={img.id}
+                                  key={img.id || img.url || imgIdx}
                                   src={img.url}
-                                  alt=""
-                                  className="w-full h-20 sm:h-24 object-cover rounded-lg border"
+                                  alt={img.caption || ''}
+                                  className="w-full h-24 object-cover rounded-xl border"
                                   style={{ display: 'block', width: '100%', objectFit: 'cover' }}
+                                  onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
                                 />
                               ))}
                             </div>
